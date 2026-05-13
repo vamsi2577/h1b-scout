@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Panel Smoke Test</title>
+    <link rel="stylesheet" href="../../extension/src/sidepanel/panel.css">
+  </head>
+  <body>
+    <main>
+      <section class="header">
+        <div>
+          <p class="eyebrow">Visa sponsorship</p>
+          <h1 id="companyHeading">No job detected</h1>
+          <p id="jobHeading" class="muted">Open a Greenhouse or Workday job post.</p>
+        </div>
+      </section>
+
+      <form id="lookupForm" class="edit-form">
+        <label>
+          Company
+          <input id="companyInput" name="companyName" autocomplete="organization">
+        </label>
+        <label>
+          Job title
+          <input id="titleInput" name="jobTitle" autocomplete="off">
+        </label>
+        <button type="submit">Update lookup</button>
+      </form>
+
+      <section id="status" class="status" hidden></section>
+
+      <section class="coverage">
+        <span id="coverageLabel">FY2026 Q1 + FY2025</span>
+        <span id="confidenceLabel">No match</span>
+      </section>
+
+      <section class="stats-grid" aria-label="Combined sponsorship statistics">
+        <article class="stat-card">
+          <h2>H-1B LCA</h2>
+          <strong id="lcaTotal">0</strong>
+          <p id="lcaTitleTotal">0 for this title</p>
+          <dl>
+            <div><dt>Certified</dt><dd id="lcaCertified">0</dd></div>
+            <div><dt>Denied</dt><dd id="lcaDenied">0</dd></div>
+            <div><dt>Withdrawn</dt><dd id="lcaWithdrawn">0</dd></div>
+          </dl>
+        </article>
+
+        <article class="stat-card">
+          <h2>PERM</h2>
+          <strong id="permTotal">0</strong>
+          <p id="permTitleTotal">0 for this title</p>
+          <dl>
+            <div><dt>Certified</dt><dd id="permCertified">0</dd></div>
+            <div><dt>Denied</dt><dd id="permDenied">0</dd></div>
+            <div><dt>Withdrawn</dt><dd id="permWithdrawn">0</dd></div>
+          </dl>
+        </article>
+      </section>
+
+      <section class="wage-card">
+        <h2>Offered wage</h2>
+        <p id="wageSummary">No wage data in the current match.</p>
+      </section>
+
+      <section>
+        <h2 class="section-title">Year breakdown</h2>
+        <div id="yearBreakdown" class="year-list"></div>
+      </section>
+
+      <section>
+        <h2 class="section-title">Sources</h2>
+        <p class="source-note">FY2026 is partial year-to-date data based on current published OFLC coverage.</p>
+        <div id="sourceLinks" class="links"></div>
+      </section>
+    </main>
+
+    <script>
+      globalThis.chrome = {
+        tabs: {
+          query: async () => [{ id: 1, url: "https://boards.greenhouse.io/acme/jobs/123" }]
+        },
+        runtime: {
+          sendMessage(message, callback) {
+            callback({
+              ok: true,
+              context: {
+                companyName: message.companyName || "Acme Inc.",
+                jobTitle: message.jobTitle || "Software Engineer",
+                source: "greenhouse",
+                url: "https://boards.greenhouse.io/acme/jobs/123"
+              },
+              lookup: {
+                fiscalYears: [2026, 2025],
+                coverageLabel: "FY2026 Q1 + FY2025",
+                employerMatch: "ACME",
+                confidence: "high",
+                combined: {
+                  lca: {
+                    employerTotal: 8,
+                    titleTotal: 5,
+                    certified: 7,
+                    denied: 1,
+                    withdrawn: 0,
+                    avgWage: 118000,
+                    medianWage: 119000,
+                    minWage: 98000,
+                    maxWage: 145000
+                  },
+                  perm: {
+                    employerTotal: 2,
+                    titleTotal: 1,
+                    certified: 2,
+                    denied: 0,
+                    withdrawn: 0
+                  }
+                },
+                byFiscalYear: {
+                  "2026": {
+                    lca: { employerTotal: 3, titleTotal: 2, certified: 3, denied: 0, withdrawn: 0 },
+                    perm: { employerTotal: 1, titleTotal: 1, certified: 1, denied: 0, withdrawn: 0 }
+                  },
+                  "2025": {
+                    lca: { employerTotal: 5, titleTotal: 3, certified: 4, denied: 1, withdrawn: 0 },
+                    perm: { employerTotal: 1, titleTotal: 0, certified: 1, denied: 0, withdrawn: 0 }
+                  }
+                },
+                sourceLinks: [
+                  { label: "DOL OFLC source data", url: "https://www.dol.gov/agencies/eta/foreign-labor/performance" }
+                ]
+              }
+            });
+          }
+        }
+      };
+    </script>
+    <script src="../../extension/src/shared/normalization.js"></script>
+    <script src="../../extension/src/shared/lookup.js"></script>
+    <script src="../../extension/src/sidepanel/panel.js"></script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Visa Sponsorship Side Panel",
+  "version": "0.1.0",
+  "description": "Shows DOL OFLC visa sponsorship statistics for Greenhouse and Workday job posts.",
+  "permissions": ["sidePanel", "tabs", "storage"],
+  "host_permissions": [
+    "https://boards.greenhouse.io/*",
+    "https://*.greenhouse.io/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.workdayjobs.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://boards.greenhouse.io/*",
+        "https://*.greenhouse.io/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://*.workdayjobs.com/*"
+      ],
+      "js": [
+        "src/shared/normalization.js",
+        "src/content/job-extractor.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "src/sidepanel/panel.html"
+  },
+  "action": {
+    "default_title": "Visa Sponsorship"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["data/sponsorship-index.json"],
+      "matches": [
+        "https://boards.greenhouse.io/*",
+        "https://*.greenhouse.io/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://*.workdayjobs.com/*"
+      ]
+    }
+  ]
+}

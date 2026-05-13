@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Visa Sponsorship</title>
+    <link rel="stylesheet" href="panel.css">
+  </head>
+  <body>
+    <main>
+      <section class="header">
+        <div>
+          <p class="eyebrow">Visa sponsorship</p>
+          <h1 id="companyHeading">No job detected</h1>
+          <p id="jobHeading" class="muted">Open a Greenhouse or Workday job post.</p>
+        </div>
+      </section>
+
+      <form id="lookupForm" class="edit-form">
+        <label>
+          Company
+          <input id="companyInput" name="companyName" autocomplete="organization">
+        </label>
+        <label>
+          Job title
+          <input id="titleInput" name="jobTitle" autocomplete="off">
+        </label>
+        <button type="submit">Update lookup</button>
+      </form>
+
+      <section id="status" class="status" hidden></section>
+
+      <section class="coverage">
+        <span id="coverageLabel">FY2026 Q1 + FY2025</span>
+        <span id="confidenceLabel">No match</span>
+      </section>
+
+      <section class="stats-grid" aria-label="Combined sponsorship statistics">
+        <article class="stat-card">
+          <h2>H-1B LCA</h2>
+          <strong id="lcaTotal">0</strong>
+          <p id="lcaTitleTotal">0 for this title</p>
+          <dl>
+            <div><dt>Certified</dt><dd id="lcaCertified">0</dd></div>
+            <div><dt>Denied</dt><dd id="lcaDenied">0</dd></div>
+            <div><dt>Withdrawn</dt><dd id="lcaWithdrawn">0</dd></div>
+          </dl>
+        </article>
+
+        <article class="stat-card">
+          <h2>PERM</h2>
+          <strong id="permTotal">0</strong>
+          <p id="permTitleTotal">0 for this title</p>
+          <dl>
+            <div><dt>Certified</dt><dd id="permCertified">0</dd></div>
+            <div><dt>Denied</dt><dd id="permDenied">0</dd></div>
+            <div><dt>Withdrawn</dt><dd id="permWithdrawn">0</dd></div>
+          </dl>
+        </article>
+      </section>
+
+      <section class="wage-card">
+        <h2>Offered wage</h2>
+        <p id="wageSummary">No wage data in the current match.</p>
+      </section>
+
+      <section>
+        <h2 class="section-title">Year breakdown</h2>
+        <div id="yearBreakdown" class="year-list"></div>
+      </section>
+
+      <section>
+        <h2 class="section-title">Sources</h2>
+        <p class="source-note">FY2026 is partial year-to-date data based on current published OFLC coverage.</p>
+        <div id="sourceLinks" class="links"></div>
+      </section>
+    </main>
+
+    <script src="../shared/normalization.js"></script>
+    <script src="../shared/lookup.js"></script>
+    <script src="panel.js"></script>
+  </body>
+</html>
