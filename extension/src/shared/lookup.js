@@ -58,10 +58,11 @@
 
   function sourceLinks(companyName) {
     const encoded = encodeURIComponent(companyName || "");
+    const slug = (companyName || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     return [
       { label: "DOL OFLC source data", url: "https://www.dol.gov/agencies/eta/foreign-labor/performance" },
-      { label: "MyVisaJobs employer search", url: `https://www.myvisajobs.com/Search_Visa_Sponsor.aspx?N=${encoded}` },
-      { label: "H1BGrader employer search", url: `https://h1bgrader.com/h1b-sponsors/${encoded}` },
+      { label: "MyVisaJobs", url: `https://www.myvisajobs.com/Search_Visa_Sponsor.aspx?N=${encoded}` },
+      { label: "H1BGrader", url: `https://h1bgrader.com/h1b-sponsors/${slug}` },
       { label: "USCIS H-1B Employer Data Hub", url: "https://www.uscis.gov/tools/reports-and-studies/h-1b-employer-data-hub" }
     ];
   }
@@ -124,6 +125,8 @@
       addStats(combined, stats);
     }
 
+    const displayName = match ? (index.employers[match.key]?.displayName || companyName) : companyName;
+
     return {
       fiscalYears,
       partialYear,
@@ -132,7 +135,7 @@
       confidence: match?.confidence || "none",
       combined,
       byFiscalYear,
-      sourceLinks: sourceLinks(companyName)
+      sourceLinks: sourceLinks(displayName)
     };
   }
 
