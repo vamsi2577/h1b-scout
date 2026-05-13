@@ -28,8 +28,40 @@ main {
 }
 
 .header {
+  align-items: flex-start;
   border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
   padding-bottom: 12px;
+}
+
+.reload-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: unset;
+  padding: 5px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.reload-btn:hover {
+  background: #e8f1ef;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.reload-btn.spinning svg {
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .eyebrow {

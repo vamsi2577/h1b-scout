@@ -1,4 +1,5 @@
 const elements = {
+  reloadBtn: document.querySelector("#reloadBtn"),
   companyHeading: document.querySelector("#companyHeading"),
   jobHeading: document.querySelector("#jobHeading"),
   companyInput: document.querySelector("#companyInput"),
@@ -122,9 +123,15 @@ function render(payload) {
   renderLinks(lookup.sourceLinks);
 }
 
-async function loadPanelData() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  chrome.runtime.sendMessage({ type: "GET_PANEL_DATA", tabId: tab?.id }, render);
+function loadPanelData() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+      chrome.runtime.sendMessage({ type: "GET_PANEL_DATA", tabId: tab?.id }, (payload) => {
+        render(payload);
+        resolve();
+      });
+    });
+  });
 }
 
 elements.form.addEventListener("submit", async (event) => {
@@ -141,6 +148,15 @@ elements.form.addEventListener("submit", async (event) => {
     },
     render
   );
+});
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === "CONTEXT_UPDATED") loadPanelData();
+});
+
+elements.reloadBtn.addEventListener("click", () => {
+  elements.reloadBtn.classList.add("spinning");
+  loadPanelData().finally(() => elements.reloadBtn.classList.remove("spinning"));
 });
 
 setStatus("Loading sponsorship data…");

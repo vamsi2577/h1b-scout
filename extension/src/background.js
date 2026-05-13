@@ -3,6 +3,7 @@ importScripts("shared/normalization.js", "shared/lookup.js");
 const DATA_URL = chrome.runtime.getURL("data/sponsorship-index.json");
 let indexPromise;
 const latestContextByTab = new Map();
+const panelEnabledTabs = new Set();
 
 async function loadIndex() {
   if (!indexPromise) {
@@ -25,19 +26,26 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   latestContextByTab.delete(tabId);
+  panelEnabledTabs.delete(tabId);
+  chrome.storage.session.remove(`tab_${tabId}`);
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const tabId = sender.tab?.id || message.tabId;
 
   if (message.type === "JOB_CONTEXT_FOUND" && tabId) {
-    latestContextByTab.set(tabId, {
+    const context = {
       companyName: message.companyName || "",
       jobTitle: message.jobTitle || "",
       source: message.source || "unknown",
       url: message.url || sender.tab?.url || ""
-    });
-    chrome.sidePanel.setOptions({ tabId, path: "src/sidepanel/panel.html", enabled: true });
+    };
+    latestContextByTab.set(tabId, context);
+    if (!panelEnabledTabs.has(tabId)) {
+      panelEnabledTabs.add(tabId);
+      chrome.sidePanel.setOptions({ tabId, path: "src/sidepanel/panel.html", enabled: true });
+    }
+    chrome.runtime.sendMessage({ type: "CONTEXT_UPDATED", tabId }).catch(() => {});
     sendResponse({ ok: true });
     return false;
   }

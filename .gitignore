@@ -8,5 +8,8 @@ extension/data/sponsorship-index.json
 # Raw DOL data files
 data/raw/
 
+# Claude Code local config
+.claude/
+
 # Node
 node_modules/
