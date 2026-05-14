@@ -5,6 +5,8 @@
   function detectSource(hostname) {
     if (hostname.includes("greenhouse.io")) return "greenhouse";
     if (hostname.includes("workdayjobs.com") || hostname.includes("myworkdayjobs.com")) return "workday";
+    if (hostname.includes("lever.co")) return "lever";
+    if (hostname.includes("ashbyhq.com")) return "ashby";
     return "unsupported";
   }
 
@@ -149,14 +151,40 @@
     };
   }
 
+  function leverContext() {
+    const jsonLd = fromJsonLd();
+    return {
+      companyName: jsonLd.companyName || meta("og:site_name") || "",
+      jobTitle: jsonLd.jobTitle || text("h1") || meta("og:title") || ""
+    };
+  }
+
+  function ashbyContext() {
+    const jsonLd = fromJsonLd();
+    return {
+      companyName: jsonLd.companyName || meta("og:site_name") || "",
+      jobTitle: jsonLd.jobTitle || text("h1") || meta("og:title") || ""
+    };
+  }
+
   function extractContext() {
-    const context = source === "greenhouse" ? greenhouseContext() : source === "workday" ? workdayContext() : {};
+    let context = {};
+    if (source === "greenhouse") context = greenhouseContext();
+    else if (source === "workday") context = workdayContext();
+    else if (source === "lever") context = leverContext();
+    else if (source === "ashby") context = ashbyContext();
+
+    const signals = (typeof VisaSponsor !== "undefined" && VisaSponsor.extractSignals)
+      ? VisaSponsor.extractSignals()
+      : [];
+
     return {
       type: "JOB_CONTEXT_FOUND",
       companyName: context.companyName || "",
       jobTitle: context.jobTitle || "",
       source,
-      url: location.href
+      url: location.href,
+      signals
     };
   }
 
@@ -164,6 +192,10 @@
     if (source === "unsupported") return;
     if (source === "greenhouse" && !location.pathname.includes("/jobs/")) return;
     if (source === "workday" && !location.pathname.includes("/job/")) return;
+    // Lever: /company-name/uuid  — must have a path with at least 2 segments
+    if (source === "lever" && location.pathname.split("/").filter(Boolean).length < 2) return;
+    // Ashby: /company-name/uuid — same structure
+    if (source === "ashby" && location.pathname.split("/").filter(Boolean).length < 2) return;
     const context = extractContext();
     if (!context.companyName && !context.jobTitle) return;
     const key = `${context.companyName}|${context.jobTitle}|${context.url}`;

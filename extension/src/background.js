@@ -38,7 +38,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       companyName: message.companyName || "",
       jobTitle: message.jobTitle || "",
       source: message.source || "unknown",
-      url: message.url || sender.tab?.url || ""
+      url: message.url || sender.tab?.url || "",
+      signals: Array.isArray(message.signals) ? message.signals : []
     };
     latestContextByTab.set(tabId, context);
     if (!panelEnabledTabs.has(tabId)) {

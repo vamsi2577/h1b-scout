@@ -1,5 +1,7 @@
 const elements = {
   reloadBtn: document.querySelector("#reloadBtn"),
+  signalsSection: document.querySelector("#signalsSection"),
+  signalsList: document.querySelector("#signalsList"),
   companyHeading: document.querySelector("#companyHeading"),
   jobHeading: document.querySelector("#jobHeading"),
   companyInput: document.querySelector("#companyInput"),
@@ -78,6 +80,28 @@ function renderYearBreakdown(lookup) {
   }
 }
 
+function renderSignals(signals) {
+  elements.signalsList.replaceChildren();
+  if (!signals?.length) {
+    elements.signalsSection.hidden = true;
+    return;
+  }
+  elements.signalsSection.hidden = false;
+  for (const signal of signals) {
+    const chip = document.createElement("div");
+    chip.className = `signal-chip ${signal.severity}`;
+    const label = document.createElement("strong");
+    label.textContent = signal.severity === "high" ? `⚠ ${signal.label}` : `ℹ ${signal.label}`;
+    chip.append(label);
+    if (signal.quote) {
+      const quote = document.createElement("span");
+      quote.textContent = `"${signal.quote}"`;
+      chip.append(quote);
+    }
+    elements.signalsList.append(chip);
+  }
+}
+
 function renderLinks(links) {
   elements.sourceLinks.replaceChildren();
   for (const link of links || []) {
@@ -118,6 +142,7 @@ function render(payload) {
     setStatus("");
   }
 
+  renderSignals(currentContext.signals || []);
   renderStats(lookup.combined);
   renderYearBreakdown(lookup);
   renderLinks(lookup.sourceLinks);

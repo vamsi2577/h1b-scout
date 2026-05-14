@@ -1,0 +1,130 @@
+(function attachSignalsExtractor(root) {
+  // Ordered list of selectors to find the job description text.
+  // First match wins; falls back to document.body.
+  const DESCRIPTION_SELECTORS = [
+    '[data-automation-id="jobPostingDescription"]', // Workday
+    '#content',                                      // Greenhouse
+    '.job__description',                             // Greenhouse alt
+    '.posting-requirements',                         // Lever
+    '.section-wrapper',                              // Lever alt
+    '[data-testid="job-description"]',               // Ashby
+    '[class*="jobDescription"]',
+    '[class*="job-description"]',
+    'article',
+    'main'
+  ];
+
+  const SIGNAL_PATTERNS = [
+    // ── No sponsorship ──────────────────────────────────────────────────────
+    {
+      type: "no_sponsorship",
+      label: "No visa sponsorship",
+      severity: "high",
+      patterns: [
+        /\bno\b.{0,30}\bvisa\s+sponsorship\b/i,
+        /\bno\b.{0,30}\bwork\s+(visa|permit)\s+sponsorship\b/i,
+        /\bwill\s+not\s+((provide|offer|consider|support)\b.{0,30}\b)?sponsor(ship)?\b/i,
+        /\bnot\s+(able|going)\s+to\s+sponsor\b/i,
+        /\bcannot\s+sponsor\b/i,
+        /\bunable\s+to\s+(provide\s+)?sponsor(ship)?\b/i,
+        /\bsponsorship\s+(is\s+)?(not|unavailable|not\s+available|not\s+provided|not\s+offered)\b/i,
+        /\bdoes\s+not\s+sponsor\b/i
+      ]
+    },
+
+    // ── Citizenship / GC required ────────────────────────────────────────────
+    {
+      type: "citizenship_required",
+      label: "Citizenship required",
+      severity: "high",
+      patterns: [
+        /\b(must\s+be\s+|requires?\s+)(a\s+)?(us|u\.s\.)\s+citizen\b/i,
+        /\b(us|u\.s\.)\s+citizen(ship)?\s+(only|required|is\s+required|mandatory)\b/i,
+        /\b(green\s*card|gc|permanent\s+resident)\s+(holder\s+)?(or|and|\/)\s+(us\s+)?citizen/i,
+        /\bcitizen(s)?\s+(and|or)\s+(permanent\s+residents?|green\s*card\s*holders?)\s+only\b/i,
+        /\bonly\s+(us|u\.s\.)\s+citizens?\b/i
+      ]
+    },
+
+    // ── Work authorization required (softer — EAD may qualify) ──────────────
+    {
+      type: "work_auth_required",
+      label: "Work authorization required",
+      severity: "medium",
+      patterns: [
+        /\bmust\s+be\s+(legally\s+)?(authorized|eligible)\s+to\s+work\b/i,
+        /\bauthorized\s+to\s+work\s+(in\s+the\s+(us|u\.s\.)|without\s+(visa\s+)?sponsorship)\b/i,
+        /\bwork\s+authorization\s+(is\s+)?(required|needed|mandatory)\b/i,
+        /\blegally\s+authorized\s+to\s+work\b/i,
+        /\bright\s+to\s+work\s+(in\s+the\s+)?(us|u\.s\.)\b/i
+      ]
+    },
+
+    // ── Security clearance required ──────────────────────────────────────────
+    {
+      type: "clearance_required",
+      label: "Security clearance required",
+      severity: "high",
+      patterns: [
+        /\b(ts|top\s*secret)\s*[/-]\s*sci\b/i,
+        /\btop\s+secret\s+clearance\b/i,
+        /\b(active|current|valid)\s+(us\s+)?(secret|top\s+secret)\s+clearance\b/i,
+        /\bsecret\s+clearance\s+(is\s+)?(required|needed|mandatory)\b/i,
+        /\b(dod|department\s+of\s+defense)\s+(security\s+)?clearance\b/i,
+        /\bmust\s+(hold|have|possess|maintain)\s+.{0,30}\b(security\s+)?clearance\b/i,
+        /\bsecurity\s+clearance\s+(is\s+)?(required|mandatory|needed)\b/i,
+        /\bpolygraph\s+(required|test|examination)\b/i,
+        /\bscif\s+(access|clearance|required)\b/i,
+        /\bsap\s+(clearance|access|program)\b/i
+      ]
+    },
+
+    // ── Clearance preferred / eligible (softer signal) ───────────────────────
+    {
+      type: "clearance_preferred",
+      label: "Clearance preferred",
+      severity: "medium",
+      patterns: [
+        /\bclearance\s+(is\s+)?(preferred|a\s+(big\s+)?plus|nice\s+to\s+have|desirable)\b/i,
+        /\bclearance\s+eligible\b/i,
+        /\b(secret|top\s+secret|ts)\s+clearance\s+(preferred|eligible|a\s+plus)\b/i,
+        /\b(preferred|bonus|nice)\s+.{0,40}\bclearance\b/i
+      ]
+    }
+  ];
+
+  function getDescriptionText() {
+    for (const selector of DESCRIPTION_SELECTORS) {
+      const el = document.querySelector(selector);
+      if (el?.innerText?.trim()) return el.innerText.slice(0, 10000);
+    }
+    return document.body?.innerText?.slice(0, 10000) || "";
+  }
+
+  function extractSignals() {
+    const text = getDescriptionText();
+    if (!text) return [];
+
+    const signals = [];
+    for (const def of SIGNAL_PATTERNS) {
+      for (const pattern of def.patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          signals.push({
+            type: def.type,
+            label: def.label,
+            severity: def.severity,
+            quote: match[0].replace(/\s+/g, " ").trim()
+          });
+          break; // one match per category is enough
+        }
+      }
+    }
+    return signals;
+  }
+
+  root.VisaSponsor = {
+    ...(root.VisaSponsor || {}),
+    extractSignals
+  };
+})(typeof globalThis !== "undefined" ? globalThis : window);

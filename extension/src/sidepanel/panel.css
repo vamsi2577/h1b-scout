@@ -251,3 +251,42 @@ dd {
 .links a:hover {
   text-decoration: underline;
 }
+
+.signals-list {
+  display: grid;
+  gap: 6px;
+}
+
+.signal-chip {
+  align-items: flex-start;
+  border-radius: 6px;
+  border: 1px solid;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+}
+
+.signal-chip.high {
+  background: #fff2f2;
+  border-color: #f5c2c2;
+  color: #8b1a1a;
+}
+
+.signal-chip.medium {
+  background: #fff8e6;
+  border-color: #eacf7a;
+  color: #6b4a00;
+}
+
+.signal-chip strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.signal-chip span {
+  color: inherit;
+  font-size: 11px;
+  opacity: 0.75;
+}

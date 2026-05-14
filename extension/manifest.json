@@ -8,7 +8,9 @@
     "https://boards.greenhouse.io/*",
     "https://*.greenhouse.io/*",
     "https://*.myworkdayjobs.com/*",
-    "https://*.workdayjobs.com/*"
+    "https://*.workdayjobs.com/*",
+    "https://jobs.lever.co/*",
+    "https://jobs.ashbyhq.com/*"
   ],
   "background": {
     "service_worker": "src/background.js"
@@ -19,10 +21,13 @@
         "https://boards.greenhouse.io/*",
         "https://*.greenhouse.io/*",
         "https://*.myworkdayjobs.com/*",
-        "https://*.workdayjobs.com/*"
+        "https://*.workdayjobs.com/*",
+        "https://jobs.lever.co/*",
+        "https://jobs.ashbyhq.com/*"
       ],
       "js": [
         "src/shared/normalization.js",
+        "src/content/signals-extractor.js",
         "src/content/job-extractor.js"
       ],
       "run_at": "document_idle"
@@ -41,7 +46,9 @@
         "https://boards.greenhouse.io/*",
         "https://*.greenhouse.io/*",
         "https://*.myworkdayjobs.com/*",
-        "https://*.workdayjobs.com/*"
+        "https://*.workdayjobs.com/*",
+        "https://jobs.lever.co/*",
+        "https://jobs.ashbyhq.com/*"
       ]
     }
   ]
