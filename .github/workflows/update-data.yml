@@ -113,9 +113,11 @@ jobs:
             exit 1
           fi
 
-          # Build --lca and --perm argument lists
-          LCA_ARGS=$(echo "$LCA_FILES" | sed 's/^/--lca /' | tr '\n' ' ')
-          PERM_ARGS=$(echo "$PERM_FILES" | sed 's/^/--perm /' | tr '\n' ' ')
+          # Build --lca and --perm argument lists (guard against empty var producing "--lca " or "--perm ")
+          LCA_ARGS=""
+          [ -n "$LCA_FILES" ] && LCA_ARGS=$(echo "$LCA_FILES" | sed 's/^/--lca /' | tr '\n' ' ')
+          PERM_ARGS=""
+          [ -n "$PERM_FILES" ] && PERM_ARGS=$(echo "$PERM_FILES" | sed 's/^/--perm /' | tr '\n' ' ')
 
           # Coverage label: prefer workflow input, fall back to auto
           COVERAGE="${{ github.event.inputs.coverage }}"
