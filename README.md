@@ -1,4 +1,4 @@
-# Visa Sponsorship Side Panel Extension
+# H1B Scout
 
 Chrome Manifest V3 extension that detects company and job title on Greenhouse and Workday job posts, then shows local DOL OFLC sponsorship statistics in Chrome's side panel.
 
