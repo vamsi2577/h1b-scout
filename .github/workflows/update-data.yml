@@ -1,0 +1,153 @@
+name: Update Sponsorship Data
+
+# Runs automatically on the 1st of Feb, May, Aug, Nov — roughly when DOL
+# publishes the previous quarter's LCA disclosure files.
+# Can also be triggered manually via the GitHub Actions UI.
+
+on:
+  workflow_dispatch:
+    inputs:
+      coverage:
+        description: 'Coverage label shown in the panel (e.g. "FY2026 Q2 + FY2025")'
+        required: false
+        default: ''
+  schedule:
+    - cron: '0 6 1 2,5,8,11 *'   # 06:00 UTC on Feb 1, May 1, Aug 1, Nov 1
+
+permissions:
+  contents: write   # needed to create GitHub Releases
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      # ── Determine fiscal year & quarter ────────────────────────────────────
+      # DOL fiscal year runs Oct 1 – Sep 30.
+      # Quarters: Q1 Oct-Dec, Q2 Jan-Mar, Q3 Apr-Jun, Q4 Jul-Sep
+      - name: Determine current period
+        id: period
+        run: |
+          MONTH=$(date -u +'%-m')
+          YEAR=$(date -u +'%Y')
+
+          if   [ "$MONTH" -ge 10 ]; then FY=$((YEAR + 1)); Q=1
+          elif [ "$MONTH" -le  3 ]; then FY=$YEAR;         Q=2
+          elif [ "$MONTH" -le  6 ]; then FY=$YEAR;         Q=3
+          else                           FY=$YEAR;         Q=4
+          fi
+
+          PREV_FY=$((FY - 1))
+          echo "FY=$FY"       >> "$GITHUB_OUTPUT"
+          echo "Q=$Q"         >> "$GITHUB_OUTPUT"
+          echo "PREV_FY=$PREV_FY" >> "$GITHUB_OUTPUT"
+
+      # ── Download DOL OFLC files ─────────────────────────────────────────────
+      # DOL publishes files at predictable URLs. Files for future quarters
+      # return 404 and are skipped safely.
+      - name: Download DOL OFLC XLSX files
+        env:
+          FY: ${{ steps.period.outputs.FY }}
+          Q: ${{ steps.period.outputs.Q }}
+          PREV_FY: ${{ steps.period.outputs.PREV_FY }}
+          BASE: https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs
+        run: |
+          mkdir -p data/raw
+
+          echo "=== Current FY${FY} LCA (Q1 through Q${Q}) ==="
+          for QN in 1 2 3 4; do
+            if [ "$QN" -le "$Q" ]; then
+              FILE="LCA_Disclosure_Data_FY${FY}_Q${QN}.xlsx"
+              curl -fsSL "$BASE/$FILE" -o "data/raw/$FILE" \
+                && echo "  ✓ $FILE" \
+                || echo "  ✗ $FILE (not yet published, skipping)"
+            fi
+          done
+
+          echo "=== Previous FY${PREV_FY} LCA (all quarters) ==="
+          for QN in 1 2 3 4; do
+            FILE="LCA_Disclosure_Data_FY${PREV_FY}_Q${QN}.xlsx"
+            curl -fsSL "$BASE/$FILE" -o "data/raw/$FILE" \
+              && echo "  ✓ $FILE" \
+              || echo "  ✗ $FILE (skipping)"
+          done
+
+          echo "=== PERM files ==="
+          for PERM_FY in "$FY" "$PREV_FY"; do
+            FILE="PERM_Disclosure_Data_FY${PERM_FY}.xlsx"
+            curl -fsSL "$BASE/$FILE" -o "data/raw/$FILE" \
+              && echo "  ✓ $FILE" \
+              || echo "  ✗ $FILE (skipping)"
+          done
+
+          echo ""
+          echo "Downloaded files:"
+          ls -lh data/raw/ || echo "(none)"
+
+      # ── Build the sponsorship index ─────────────────────────────────────────
+      - name: Build sponsorship index
+        env:
+          FY: ${{ steps.period.outputs.FY }}
+          Q: ${{ steps.period.outputs.Q }}
+          PREV_FY: ${{ steps.period.outputs.PREV_FY }}
+        run: |
+          # Collect downloaded files
+          LCA_FILES=$(ls data/raw/LCA_*.xlsx 2>/dev/null || true)
+          PERM_FILES=$(ls data/raw/PERM_*.xlsx 2>/dev/null || true)
+
+          if [ -z "$LCA_FILES" ] && [ -z "$PERM_FILES" ]; then
+            echo "No data files downloaded — aborting."
+            exit 1
+          fi
+
+          # Build --lca and --perm argument lists
+          LCA_ARGS=$(echo "$LCA_FILES" | sed 's/^/--lca /' | tr '\n' ' ')
+          PERM_ARGS=$(echo "$PERM_FILES" | sed 's/^/--perm /' | tr '\n' ' ')
+
+          # Coverage label: prefer workflow input, fall back to auto
+          COVERAGE="${{ github.event.inputs.coverage }}"
+          if [ -z "$COVERAGE" ]; then
+            COVERAGE="FY${FY} Q${Q} + FY${PREV_FY}"
+          fi
+
+          node scripts/prepare-data.mjs \
+            $LCA_ARGS \
+            $PERM_ARGS \
+            --coverage "$COVERAGE" \
+            --out extension/data/sponsorship-index.json
+
+          echo ""
+          echo "Index size: $(ls -lh extension/data/sponsorship-index.json | awk '{print $5}')"
+
+      # ── Validate the index ──────────────────────────────────────────────────
+      - name: Validate index (smoke test)
+        run: node scripts/index-smoke.mjs
+
+      # ── Publish as a GitHub Release ─────────────────────────────────────────
+      - name: Get release date
+        id: date
+        run: echo "date=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: data-${{ steps.date.outputs.date }}
+          name: "Sponsorship data — ${{ steps.date.outputs.date }}"
+          body: |
+            Automated update of the DOL OFLC sponsorship index.
+
+            **Coverage:** ${{ github.event.inputs.coverage || format('FY{0} Q{1} + FY{2}', steps.period.outputs.FY, steps.period.outputs.Q, steps.period.outputs.PREV_FY) }}
+            **Generated:** ${{ steps.date.outputs.date }}
+            **Source:** [DOL OFLC Performance Data](https://www.dol.gov/agencies/eta/foreign-labor/performance)
+          files: extension/data/sponsorship-index.json
+          make_latest: true

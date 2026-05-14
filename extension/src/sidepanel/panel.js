@@ -22,7 +22,8 @@ const elements = {
   permCertified: document.querySelector("#permCertified"),
   permDenied: document.querySelector("#permDenied"),
   permWithdrawn: document.querySelector("#permWithdrawn"),
-  wageSummary: document.querySelector("#wageSummary")
+  wageSummary: document.querySelector("#wageSummary"),
+  dataAge: document.querySelector("#dataAge")
 };
 
 let currentContext = {};
@@ -34,6 +35,22 @@ function formatNumber(value) {
 function formatMoney(value) {
   if (!value) return null;
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+}
+
+function formatDataAge(isoString) {
+  if (!isoString) return "";
+  const generated = new Date(isoString);
+  if (Number.isNaN(generated.getTime())) return "";
+  const diffMs = Date.now() - generated.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 1) return "Index updated today";
+  if (diffDays === 1) return "Index updated 1 day ago";
+  if (diffDays < 30) return `Index updated ${diffDays} days ago`;
+  const diffMonths = Math.floor(diffDays / 30);
+  if (diffMonths === 1) return "Index updated 1 month ago";
+  if (diffMonths < 12) return `Index updated ${diffMonths} months ago`;
+  const diffYears = Math.floor(diffMonths / 12);
+  return `Index updated ${diffYears === 1 ? "1 year" : `${diffYears} years`} ago`;
 }
 
 function setStatus(message) {
@@ -156,6 +173,7 @@ function render(payload) {
   renderStats(lookup.combined);
   renderYearBreakdown(lookup);
   renderLinks(lookup.sourceLinks);
+  elements.dataAge.textContent = formatDataAge(payload.dataAge);
 }
 
 function loadPanelData() {

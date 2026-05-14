@@ -36,18 +36,5 @@
   "action": {
     "default_title": "Visa Sponsorship"
   },
-  "web_accessible_resources": [
-    {
-      "resources": ["data/sponsorship-index.json"],
-      "matches": [
-        "https://boards.greenhouse.io/*",
-        "https://*.greenhouse.io/*",
-        "https://*.myworkdayjobs.com/*",
-        "https://*.workdayjobs.com/*",
-        "https://jobs.lever.co/*",
-        "https://jobs.ashbyhq.com/*",
-        "https://www.linkedin.com/jobs/*"
-      ]
-    }
-  ]
+  "web_accessible_resources": []
 }

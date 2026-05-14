@@ -1,25 +1,69 @@
 importScripts("shared/normalization.js", "shared/lookup.js");
 
-const DATA_URL = chrome.runtime.getURL("data/sponsorship-index.json");
+// ── Data source ─────────────────────────────────────────────────────────────
+// URL of the hosted sponsorship index on GitHub Releases.
+// After pushing this repo to GitHub and creating the first release (by running
+// the "Update Sponsorship Data" GitHub Action), replace the placeholder below
+// with your actual URL:
+//   https://github.com/<owner>/<repo>/releases/latest/download/sponsorship-index.json
+const REMOTE_DATA_URL =
+  "https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/releases/latest/download/sponsorship-index.json";
+
+const CACHE_NAME = "visa-sponsor-data-v1";
+const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // re-check weekly
+
+// ── In-memory state ──────────────────────────────────────────────────────────
 let indexPromise;
 const latestContextByTab = new Map();
 const panelEnabledTabs = new Set();
 
+// ── Index loading ─────────────────────────────────────────────────────────────
 async function loadIndex() {
-  if (!indexPromise) {
-    indexPromise = fetch(DATA_URL).then((response) => {
-      if (!response.ok) throw new Error(`Unable to load sponsorship index: ${response.status}`);
+  if (indexPromise) return indexPromise;
+
+  indexPromise = (async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const { dataCachedAt } = await chrome.storage.local.get("dataCachedAt");
+    const isStale = Date.now() - (dataCachedAt || 0) > STALE_AFTER_MS;
+
+    // Serve from cache when fresh
+    if (!isStale) {
+      const cached = await cache.match(REMOTE_DATA_URL);
+      if (cached) return cached.json();
+    }
+
+    // Fetch a fresh copy; on failure fall back to the stale cached copy
+    try {
+      const response = await fetch(REMOTE_DATA_URL);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await cache.put(REMOTE_DATA_URL, response.clone());
+      await chrome.storage.local.set({ dataCachedAt: Date.now() });
       return response.json();
-    });
-  }
+    } catch (fetchError) {
+      const stale = await cache.match(REMOTE_DATA_URL);
+      if (stale) {
+        console.warn("Visa Sponsorship: data fetch failed, using cached copy.", fetchError.message);
+        return stale.json();
+      }
+      throw new Error(
+        "Unable to load sponsorship data. Check the GitHub Releases URL in background.js, ensure the repo is public, and that a data release exists."
+      );
+    }
+  })().catch((error) => {
+    indexPromise = null; // allow retry on next panel open
+    throw error;
+  });
+
   return indexPromise;
 }
 
-async function refreshPanel(tabId, context) {
+async function refreshPanel(context) {
   const index = await loadIndex();
-  return VisaSponsor.lookupSponsorship(index, context.companyName, context.jobTitle);
+  const lookup = VisaSponsor.lookupSponsorship(index, context.companyName, context.jobTitle);
+  return { lookup, generatedAt: index.metadata?.generatedAt || null };
 }
 
+// ── Lifecycle ─────────────────────────────────────────────────────────────────
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
@@ -30,8 +74,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   chrome.storage.session.remove(`tab_${tabId}`);
 });
 
-// Detect Greenhouse/Ashby boards embedded on company career pages via URL params.
-// ?gh_jid=<id>  → Greenhouse   |   ?ashby_jid=<id> → Ashby
+// ── Embedded ATS detection (gh_jid / ashby_jid URL params) ───────────────────
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   if (!changeInfo.url) return;
   let url;
@@ -41,7 +84,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   const ashbyJid = url.searchParams.get("ashby_jid");
   if (!ghJid && !ashbyJid) return;
 
-  // Enable the panel immediately so the user can see something
   if (!panelEnabledTabs.has(tabId)) {
     panelEnabledTabs.add(tabId);
     chrome.sidePanel.setOptions({ tabId, path: "src/sidepanel/panel.html", enabled: true });
@@ -49,8 +91,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 
   try {
     if (ghJid) {
-      // Probe the page: look for an embedded Greenhouse iframe to extract the board token,
-      // and grab a company name from page metadata as a fallback.
       const [probe] = await chrome.scripting.executeScript({
         target: { tabId },
         func: () => {
@@ -83,20 +123,12 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
         } catch { /* network failure — leave title empty */ }
       }
 
-      const context = {
-        companyName: companyName || "",
-        jobTitle,
-        source: "greenhouse",
-        url: changeInfo.url,
-        signals: []
-      };
+      const context = { companyName: companyName || "", jobTitle, source: "greenhouse", url: changeInfo.url, signals: [] };
       latestContextByTab.set(tabId, context);
       chrome.runtime.sendMessage({ type: "CONTEXT_UPDATED", tabId }).catch(() => {});
     }
 
     if (ashbyJid) {
-      // Ashby job IDs are UUIDs; without the org slug we can't call their GraphQL API.
-      // Extract company name from page metadata and let the user confirm via the manual form.
       const [probe] = await chrome.scripting.executeScript({
         target: { tabId },
         func: () => ({
@@ -108,21 +140,16 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
         })
       });
 
-      const context = {
-        companyName: probe?.result?.companyName || "",
-        jobTitle: "",
-        source: "ashby",
-        url: changeInfo.url,
-        signals: []
-      };
+      const context = { companyName: probe?.result?.companyName || "", jobTitle: "", source: "ashby", url: changeInfo.url, signals: [] };
       latestContextByTab.set(tabId, context);
       chrome.runtime.sendMessage({ type: "CONTEXT_UPDATED", tabId }).catch(() => {});
     }
   } catch {
-    // scripting.executeScript can fail if the tab navigated away or the page blocked injection
+    // scripting.executeScript can fail if the tab navigated away
   }
 });
 
+// ── Message handling ──────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const tabId = sender.tab?.id || message.tabId;
 
@@ -146,13 +173,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === "GET_PANEL_DATA") {
     const context = latestContextByTab.get(tabId) || {
-      companyName: "",
-      jobTitle: "",
-      source: "unsupported",
-      url: ""
+      companyName: "", jobTitle: "", source: "unsupported", url: ""
     };
-    refreshPanel(tabId, context)
-      .then((lookup) => sendResponse({ ok: true, context, lookup }))
+    refreshPanel(context)
+      .then(({ lookup, generatedAt }) =>
+        sendResponse({ ok: true, context, lookup, dataAge: generatedAt })
+      )
       .catch((error) => sendResponse({ ok: false, error: error.message, context }));
     return true;
   }
@@ -165,8 +191,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       url: message.url || ""
     };
     if (tabId) latestContextByTab.set(tabId, context);
-    refreshPanel(tabId, context)
-      .then((lookup) => sendResponse({ ok: true, context, lookup }))
+    refreshPanel(context)
+      .then(({ lookup, generatedAt }) =>
+        sendResponse({ ok: true, context, lookup, dataAge: generatedAt })
+      )
       .catch((error) => sendResponse({ ok: false, error: error.message, context }));
     return true;
   }
