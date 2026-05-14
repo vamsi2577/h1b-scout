@@ -148,9 +148,10 @@ async function* readRows(filePath) {
     } catch {
       throw new Error(`Reading ${ext} requires optional dependency "xlsx". Export ${filePath} to CSV or run npm install.`);
     }
-    const workbook = xlsx.readFile(absolutePath);
+    const lib = xlsx.default ?? xlsx; // CJS package — dynamic import wraps it in .default
+    const workbook = lib.readFile(absolutePath);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    for (const row of xlsx.utils.sheet_to_json(sheet, { defval: "" })) {
+    for (const row of lib.utils.sheet_to_json(sheet, { defval: "" })) {
       yield Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeColumn(key), String(value ?? "")]));
     }
     return;
