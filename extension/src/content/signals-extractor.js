@@ -28,6 +28,8 @@
         /\bcannot\s+sponsor\b/i,
         /\bunable\s+to\s+(provide\s+)?sponsor(ship)?\b/i,
         /\bsponsorship\s+(is\s+)?(not|unavailable|not\s+available|not\s+provided|not\s+offered)\b/i,
+        /\bsponsorship\b.{0,120}\bis\s+not\s+(available|provided|offered)\b/i,
+        /\b(no|not\s+offer(ing)?|not\s+provid(ing)?)\b.{0,60}\bimmigration.{0,40}\bsupport\b/i,
         /\bdoes\s+not\s+sponsor\b/i
       ]
     },

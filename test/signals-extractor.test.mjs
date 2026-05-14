@@ -41,6 +41,14 @@ test("detects 'sponsorship is not available'", () => {
   assert.ok(signals.some((s) => s.type === "no_sponsorship"));
 });
 
+test("detects long-form 'sponsorship ... is not available' with intervening clause", () => {
+  const signals = withBody(
+    "Please note that sponsorship of new applicants for employment authorization, or any other immigration-related support, is not available for this position at this time.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "no_sponsorship"));
+});
+
 // ── Citizenship required ──────────────────────────────────────────────────────
 
 test("detects 'US citizen only'", () => {
