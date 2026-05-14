@@ -280,6 +280,11 @@ function finalizeIndex(index) {
   return index;
 }
 
+function elapsed(startMs) {
+  const s = ((Date.now() - startMs) / 1000).toFixed(1);
+  return `${s}s`;
+}
+
 export async function buildIndex({ lca = [], perm = [], coverage = "FY2026 Q1 + FY2025", partialYear = null }) {
   const fiscalYears = new Set();
   const index = {
@@ -296,22 +301,47 @@ export async function buildIndex({ lca = [], perm = [], coverage = "FY2026 Q1 + 
     aliases: {}
   };
 
+  const totalStart = Date.now();
+
   for (const filePath of lca) {
     const fiscalYear = fiscalYearFromPath(filePath);
     fiscalYears.add(fiscalYear);
-    for await (const row of readRows(filePath)) recordRow(index, "lca", fiscalYear, row);
+    const fileStart = Date.now();
+    let rowCount = 0;
+    process.stderr.write(`  [LCA] ${path.basename(filePath)} (FY${fiscalYear}) — reading...\n`);
+    for await (const row of readRows(filePath)) {
+      recordRow(index, "lca", fiscalYear, row);
+      rowCount += 1;
+      if (rowCount % 100_000 === 0) {
+        process.stderr.write(`    ${rowCount.toLocaleString()} rows (${elapsed(fileStart)}, ${Object.keys(index.employers).length.toLocaleString()} employers so far)\n`);
+      }
+    }
+    process.stderr.write(`  [LCA] ${path.basename(filePath)} done — ${rowCount.toLocaleString()} rows in ${elapsed(fileStart)}\n`);
   }
 
   for (const filePath of perm) {
     const fiscalYear = fiscalYearFromPath(filePath);
     fiscalYears.add(fiscalYear);
-    for await (const row of readRows(filePath)) recordRow(index, "perm", fiscalYear, row);
+    const fileStart = Date.now();
+    let rowCount = 0;
+    process.stderr.write(`  [PERM] ${path.basename(filePath)} (FY${fiscalYear}) — reading...\n`);
+    for await (const row of readRows(filePath)) {
+      recordRow(index, "perm", fiscalYear, row);
+      rowCount += 1;
+      if (rowCount % 50_000 === 0) {
+        process.stderr.write(`    ${rowCount.toLocaleString()} rows (${elapsed(fileStart)}, ${Object.keys(index.employers).length.toLocaleString()} employers so far)\n`);
+      }
+    }
+    process.stderr.write(`  [PERM] ${path.basename(filePath)} done — ${rowCount.toLocaleString()} rows in ${elapsed(fileStart)}\n`);
   }
 
+  process.stderr.write(`  Finalizing index... (${elapsed(totalStart)} total so far)\n`);
   const sortedYears = [...fiscalYears].sort((a, b) => b - a);
   index.metadata.fiscalYears = sortedYears;
   index.metadata.partialYear = partialYear ?? (sortedYears[0] ?? null);
-  return finalizeIndex(index);
+  const result = finalizeIndex(index);
+  process.stderr.write(`  Index complete — ${Object.keys(result.employers).length.toLocaleString()} employers in ${elapsed(totalStart)}\n`);
+  return result;
 }
 
 function writeShards(index, shardDir) {

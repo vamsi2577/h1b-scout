@@ -8,6 +8,7 @@
     "prepare:data": "node scripts/prepare-data.mjs --out extension/data/sponsorship-index.json",
     "prepare:shards": "node scripts/prepare-data.mjs --out extension/data/sponsorship-index.json --shard-dir data/shards",
     "data:release": "node scripts/prepare-data.mjs --out extension/data/sponsorship-index.json --shard-dir data/shards && node scripts/index-smoke.mjs",
+    "data:local": "node scripts/build-local.mjs",
     "smoke:index": "node scripts/index-smoke.mjs",
     "smoke:chrome": "node scripts/chrome-smoke.mjs",
     "smoke:e2e": "node scripts/e2e-smoke.mjs"
