@@ -143,7 +143,7 @@ function render(payload) {
   elements.confidenceLabel.textContent = lookup.confidence === "none" ? "No match" : `${lookup.confidence} match`;
 
   if (!company && !title) {
-    setStatus("Open a job post on Greenhouse, Workday, Lever, or Ashby — or enter a company and title manually.");
+    setStatus("Open a job post on Greenhouse, Workday, Lever, Ashby, or LinkedIn — or enter a company and title manually.");
   } else if (!lookup.employerMatch) {
     setStatus("No employer match found in the local OFLC index. Try editing the company name.");
   } else if (!lookup.combined.lca.employerTotal && !lookup.combined.perm.employerTotal) {

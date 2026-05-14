@@ -1,16 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Visa Sponsorship Side Panel",
-  "version": "0.1.0",
-  "description": "Shows DOL OFLC visa sponsorship statistics for Greenhouse and Workday job posts.",
-  "permissions": ["sidePanel", "tabs", "storage"],
+  "version": "0.2.0",
+  "description": "Shows DOL OFLC visa sponsorship statistics for job posts on Greenhouse, Workday, Lever, Ashby, and LinkedIn. Detects embedded ATS boards on company career pages.",
+  "permissions": ["sidePanel", "tabs", "storage", "scripting"],
   "host_permissions": [
-    "https://boards.greenhouse.io/*",
-    "https://*.greenhouse.io/*",
-    "https://*.myworkdayjobs.com/*",
-    "https://*.workdayjobs.com/*",
-    "https://jobs.lever.co/*",
-    "https://jobs.ashbyhq.com/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "src/background.js"
@@ -23,14 +18,16 @@
         "https://*.myworkdayjobs.com/*",
         "https://*.workdayjobs.com/*",
         "https://jobs.lever.co/*",
-        "https://jobs.ashbyhq.com/*"
+        "https://jobs.ashbyhq.com/*",
+        "https://www.linkedin.com/jobs/*"
       ],
       "js": [
         "src/shared/normalization.js",
         "src/content/signals-extractor.js",
         "src/content/job-extractor.js"
       ],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "side_panel": {
@@ -48,7 +45,8 @@
         "https://*.myworkdayjobs.com/*",
         "https://*.workdayjobs.com/*",
         "https://jobs.lever.co/*",
-        "https://jobs.ashbyhq.com/*"
+        "https://jobs.ashbyhq.com/*",
+        "https://www.linkedin.com/jobs/*"
       ]
     }
   ]

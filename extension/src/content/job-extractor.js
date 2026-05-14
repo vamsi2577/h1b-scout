@@ -7,6 +7,7 @@
     if (hostname.includes("workdayjobs.com") || hostname.includes("myworkdayjobs.com")) return "workday";
     if (hostname.includes("lever.co")) return "lever";
     if (hostname.includes("ashbyhq.com")) return "ashby";
+    if (hostname.includes("linkedin.com")) return "linkedin";
     return "unsupported";
   }
 
@@ -167,12 +168,48 @@
     };
   }
 
+  function linkedinContext() {
+    // LinkedIn emits schema.org/JobPosting JSON-LD on /jobs/view/* pages — try it first.
+    const jsonLd = fromJsonLd();
+
+    // CSS selector fallbacks (LinkedIn updates classes periodically; ordered most → least stable)
+    const titleEl =
+      document.querySelector("h1.job-details-jobs-unified-top-card__job-title") ||
+      document.querySelector(".jobs-unified-top-card__job-title h1") ||
+      document.querySelector("h1[class*='job-title']") ||
+      document.querySelector("h1");
+
+    const companyEl =
+      document.querySelector(".job-details-jobs-unified-top-card__company-name a") ||
+      document.querySelector(".jobs-unified-top-card__company-name a") ||
+      document.querySelector("[class*='top-card__company'] a") ||
+      document.querySelector("[class*='company-name'] a");
+
+    // og:title on LinkedIn is often "Job Title at Company Name" — reuse the parser.
+    const parsedOg = parseTitleAtCompany(meta("og:title"));
+
+    return {
+      jobTitle:
+        jsonLd.jobTitle ||
+        titleEl?.textContent?.trim() ||
+        parsedOg.jobTitle ||
+        "",
+      companyName:
+        jsonLd.companyName ||
+        companyEl?.textContent?.trim() ||
+        parsedOg.companyName ||
+        meta("og:site_name") ||
+        ""
+    };
+  }
+
   function extractContext() {
     let context = {};
     if (source === "greenhouse") context = greenhouseContext();
     else if (source === "workday") context = workdayContext();
     else if (source === "lever") context = leverContext();
     else if (source === "ashby") context = ashbyContext();
+    else if (source === "linkedin") context = linkedinContext();
 
     const signals = (typeof VisaSponsor !== "undefined" && VisaSponsor.extractSignals)
       ? VisaSponsor.extractSignals()
@@ -196,6 +233,8 @@
     if (source === "lever" && location.pathname.split("/").filter(Boolean).length < 2) return;
     // Ashby: /company-name/uuid — same structure
     if (source === "ashby" && location.pathname.split("/").filter(Boolean).length < 2) return;
+    // LinkedIn: only fire on individual job view pages, not search/listings
+    if (source === "linkedin" && !location.pathname.startsWith("/jobs/view/")) return;
     const context = extractContext();
     if (!context.companyName && !context.jobTitle) return;
     const key = `${context.companyName}|${context.jobTitle}|${context.url}`;
