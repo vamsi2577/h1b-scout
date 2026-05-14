@@ -168,24 +168,43 @@
     };
   }
 
+  // LinkedIn renders job content inside a same-origin /preload iframe (no sandbox).
+  // When the content script runs inside the iframe, `document` is correct.
+  // When it runs in the main frame, we read the iframe's contentDocument directly.
+  function getLinkedInDoc() {
+    if (location.pathname.startsWith("/preload")) return document; // already inside the iframe
+    try {
+      const iframe = document.querySelector("iframe[src*='/preload']");
+      const iDoc = iframe?.contentDocument;
+      if (iDoc && iDoc.readyState !== "uninitialized" && iDoc.body) return iDoc;
+    } catch { /* cross-origin guard — fall through */ }
+    return document;
+  }
+
   function linkedinContext() {
-    // LinkedIn emits schema.org/JobPosting JSON-LD on /jobs/view/* pages — try it first.
+    const doc = getLinkedInDoc();
+
+    // JSON-LD: present on direct /jobs/view/* pages in the main doc
     const jsonLd = fromJsonLd();
 
-    // CSS selector fallbacks (LinkedIn updates classes periodically; ordered most → least stable)
+    // Confirmed selectors (verified against live LinkedIn DOM May 2026):
+    // Title lives in an h1 with class "t-24 t-bold inline" inside
+    //   div.job-details-jobs-unified-top-card__job-title
+    // Company lives in div.job-details-jobs-unified-top-card__company-name > a
     const titleEl =
-      document.querySelector("h1.job-details-jobs-unified-top-card__job-title") ||
-      document.querySelector(".jobs-unified-top-card__job-title h1") ||
-      document.querySelector("h1[class*='job-title']") ||
-      document.querySelector("h1");
+      doc.querySelector("h1.job-details-jobs-unified-top-card__job-title") ||
+      doc.querySelector(".jobs-unified-top-card__job-title h1") ||
+      doc.querySelector("h1[class*='job-title']") ||
+      doc.querySelector("h1");  // fallback — the h1 uses utility classes, not a job-title class
 
     const companyEl =
-      document.querySelector(".job-details-jobs-unified-top-card__company-name a") ||
-      document.querySelector(".jobs-unified-top-card__company-name a") ||
-      document.querySelector("[class*='top-card__company'] a") ||
-      document.querySelector("[class*='company-name'] a");
+      doc.querySelector(".job-details-jobs-unified-top-card__company-name a") ||
+      doc.querySelector(".job-details-jobs-unified-top-card__company-name") ||  // div fallback
+      doc.querySelector(".jobs-unified-top-card__company-name a") ||
+      doc.querySelector("[class*='top-card__company'] a") ||
+      doc.querySelector("[class*='company-name'] a");
 
-    // og:title on LinkedIn is often "Job Title at Company Name" — reuse the parser.
+    // og:title is "Job Title at Company" on /jobs/view/* pages
     const parsedOg = parseTitleAtCompany(meta("og:title"));
 
     return {
@@ -233,21 +252,58 @@
     if (source === "lever" && location.pathname.split("/").filter(Boolean).length < 2) return;
     // Ashby: /company-name/uuid — same structure
     if (source === "ashby" && location.pathname.split("/").filter(Boolean).length < 2) return;
-    // LinkedIn: only fire on individual job view pages, not search/listings
-    if (source === "linkedin" && !location.pathname.startsWith("/jobs/view/")) return;
+    // LinkedIn: two contexts where this script runs —
+    //   1. Main frame at /jobs/* — guard on currentJobId or /jobs/view/ path.
+    //   2. Preload iframe at /preload/ — the entire jobs UI lives here; guard on
+    //      job content being present in the DOM (can't read parent URL from sandboxed iframe).
+    if (source === "linkedin") {
+      if (location.pathname.startsWith("/jobs/")) {
+        const currentJobId = new URLSearchParams(location.search).get("currentJobId");
+        if (!currentJobId && !location.pathname.startsWith("/jobs/view/")) return;
+      } else if (location.pathname.startsWith("/preload/") || location.pathname === "/preload") {
+        // Inside the preload iframe — only proceed if job detail content is present
+        const hasJobContent = !!(
+          document.querySelector("[class*='job-details-jobs-unified-top-card']") ||
+          document.querySelector("[class*='jobs-details__main']") ||
+          document.querySelector("h1")
+        );
+        if (!hasJobContent) return;
+      } else {
+        return; // Not a recognized LinkedIn jobs path
+      }
+    }
     const context = extractContext();
     if (!context.companyName && !context.jobTitle) return;
     const key = `${context.companyName}|${context.jobTitle}|${context.url}`;
     if (key === lastSent.key) return;
     lastSent.key = key;
     chrome.runtime.sendMessage(context).catch(() => {});
-    observer.disconnect();
+    // Keep observer alive on LinkedIn — user browses multiple jobs in the same pane.
+    // On all other sources the page content is fixed once loaded, so disconnect.
+    if (source !== "linkedin") observer?.disconnect();
   }
+
+  // Declare before the initial sendContext() calls so observer?.disconnect() is safe (undefined = no-op).
+  let observer;
 
   sendContext();
   setTimeout(sendContext, 1000);
   setTimeout(sendContext, 3000);
+  // LinkedIn hydrates slowly — extra retry catches cases where the iframe content
+  // isn't ready within the first 3 seconds.
+  if (source === "linkedin") setTimeout(sendContext, 6000);
 
-  const observer = new MutationObserver(() => sendContext());
+  observer = new MutationObserver(() => sendContext());
   observer.observe(document.documentElement, { childList: true, subtree: true });
+
+  // LinkedIn changes the URL (currentJobId) via history.pushState when the user
+  // clicks a different job in the list. Re-run sendContext on each navigation so
+  // the panel updates without a page reload.
+  if (source === "linkedin") {
+    window.addEventListener("popstate", sendContext);
+    const origPush = history.pushState.bind(history);
+    history.pushState = (...args) => { origPush(...args); sendContext(); };
+    const origReplace = history.replaceState.bind(history);
+    history.replaceState = (...args) => { origReplace(...args); sendContext(); };
+  }
 })();

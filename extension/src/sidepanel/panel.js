@@ -1,5 +1,7 @@
 const elements = {
   reloadBtn: document.querySelector("#reloadBtn"),
+  settingsBtn: document.querySelector("#settingsBtn"),
+  settingsDrawer: document.querySelector("#settingsDrawer"),
   signalsSection: document.querySelector("#signalsSection"),
   signalsList: document.querySelector("#signalsList"),
   companyHeading: document.querySelector("#companyHeading"),
@@ -23,11 +25,19 @@ const elements = {
   permDenied: document.querySelector("#permDenied"),
   permWithdrawn: document.querySelector("#permWithdrawn"),
   wageSummary: document.querySelector("#wageSummary"),
-  dataAge: document.querySelector("#dataAge")
+  dataAge: document.querySelector("#dataAge"),
+  // Settings drawer children
+  customUrlInput: document.querySelector("#customUrlInput"),
+  saveUrlBtn: document.querySelector("#saveUrlBtn"),
+  resetUrlBtn: document.querySelector("#resetUrlBtn"),
+  shardFileInput: document.querySelector("#shardFileInput"),
+  clearShardsBtn: document.querySelector("#clearShardsBtn"),
+  localShardsStatus: document.querySelector("#localShardsStatus")
 };
 
 let currentContext = {};
 
+// ── Formatters ────────────────────────────────────────────────────────────────
 function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(value || 0);
 }
@@ -53,11 +63,14 @@ function formatDataAge(isoString) {
   return `Index updated ${diffYears === 1 ? "1 year" : `${diffYears} years`} ago`;
 }
 
-function setStatus(message) {
+// ── Status bar ────────────────────────────────────────────────────────────────
+function setStatus(message, type = "warning") {
   elements.status.hidden = !message;
   elements.status.textContent = message || "";
+  elements.status.className = `status ${type}`;
 }
 
+// ── Stats rendering ───────────────────────────────────────────────────────────
 function renderStats(stats) {
   elements.lcaTotal.textContent = formatNumber(stats.lca.employerTotal);
   elements.lcaTitleTotal.textContent = `${formatNumber(stats.lca.titleTotal)} for this title`;
@@ -89,7 +102,9 @@ function renderYearBreakdown(lookup) {
     const strong = document.createElement("strong");
     strong.textContent = `FY${fiscalYear}${fiscalYear === partialYear ? " YTD" : ""}`;
     const span1 = document.createElement("span");
-    span1.textContent = `${formatNumber(stats.lca.employerTotal)} LCA, ${formatNumber(stats.perm.employerTotal)} PERM`;
+    const lcaDW = (stats.lca.denied || 0) + (stats.lca.withdrawn || 0);
+    const permDW = (stats.perm.denied || 0) + (stats.perm.withdrawn || 0);
+    span1.textContent = `${formatNumber(stats.lca.employerTotal)} LCA${lcaDW ? `, Denied/withdrawn: ${formatNumber(lcaDW)}` : ""} | ${formatNumber(stats.perm.employerTotal)} PERM${permDW ? `, Denied/withdrawn: ${formatNumber(permDW)}` : ""}`;
     const span2 = document.createElement("span");
     span2.textContent = `${formatNumber(stats.lca.titleTotal)} LCA and ${formatNumber(stats.perm.titleTotal)} PERM matched this title`;
     row.replaceChildren(strong, span1, span2);
@@ -141,9 +156,10 @@ function renderLinks(links) {
   }
 }
 
+// ── Main render ───────────────────────────────────────────────────────────────
 function render(payload) {
   if (!payload.ok) {
-    setStatus(payload.error || "Unable to load sponsorship data.");
+    setStatus(payload.error || "Unable to load sponsorship data. Open Settings (⚙) to configure a data source.");
     return;
   }
 
@@ -187,6 +203,7 @@ function loadPanelData() {
   });
 }
 
+// ── Form submit ───────────────────────────────────────────────────────────────
 elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -203,14 +220,155 @@ elements.form.addEventListener("submit", async (event) => {
   );
 });
 
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.type === "CONTEXT_UPDATED") loadPanelData();
-});
-
+// ── Reload button ─────────────────────────────────────────────────────────────
 elements.reloadBtn.addEventListener("click", () => {
   elements.reloadBtn.classList.add("spinning");
   loadPanelData().finally(() => elements.reloadBtn.classList.remove("spinning"));
 });
 
+// ── Background messages ───────────────────────────────────────────────────────
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === "CONTEXT_UPDATED") loadPanelData();
+});
+
+// ── Settings drawer ───────────────────────────────────────────────────────────
+let settingsOpen = false;
+
+function updateLocalShardsStatus(localLetters) {
+  const el = elements.localShardsStatus;
+  if (!localLetters?.length) {
+    el.textContent = "No local files stored.";
+  } else {
+    const sorted = [...localLetters].sort();
+    el.textContent = `${sorted.length} letter${sorted.length !== 1 ? "s" : ""} stored locally: ${sorted.join(", ")}`;
+  }
+}
+
+function loadSettings() {
+  chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (response) => {
+    if (!response?.ok) return;
+    elements.customUrlInput.value = response.customBaseUrl || "";
+    updateLocalShardsStatus(response.localLetters || []);
+  });
+}
+
+// Toggle drawer
+elements.settingsBtn.addEventListener("click", () => {
+  settingsOpen = !settingsOpen;
+  elements.settingsDrawer.hidden = !settingsOpen;
+  elements.settingsBtn.setAttribute("aria-expanded", String(settingsOpen));
+  elements.settingsBtn.classList.toggle("active", settingsOpen);
+  if (settingsOpen) loadSettings();
+});
+
+// Save custom URL
+elements.saveUrlBtn.addEventListener("click", () => {
+  const url = elements.customUrlInput.value.trim();
+  chrome.runtime.sendMessage({ type: "SAVE_SETTINGS", customBaseUrl: url }, (response) => {
+    if (response?.ok) {
+      setStatus(url ? `Custom URL saved. Data will reload on next lookup.` : "URL reset to default.", "info");
+    }
+  });
+});
+
+// Reset custom URL
+elements.resetUrlBtn.addEventListener("click", () => {
+  elements.customUrlInput.value = "";
+  chrome.runtime.sendMessage({ type: "SAVE_SETTINGS", customBaseUrl: "" }, (response) => {
+    if (response?.ok) setStatus("URL reset to built-in default.", "info");
+  });
+});
+
+// Partition a full sponsorship-index.json into per-letter buckets (mirrors writeShards in prepare-data.mjs)
+function shardFullIndex(data) {
+  const buckets = new Map();
+  for (const [key, employer] of Object.entries(data.employers || {})) {
+    const first = key[0]?.toUpperCase() || "0";
+    const letter = /[A-Z]/.test(first) ? first : "0";
+    if (!buckets.has(letter)) {
+      buckets.set(letter, { metadata: data.metadata, employers: {}, aliases: {} });
+    }
+    buckets.get(letter).employers[key] = employer;
+  }
+  for (const [aliasKey, targetKey] of Object.entries(data.aliases || {})) {
+    const first = aliasKey[0]?.toUpperCase() || "0";
+    const letter = /[A-Z]/.test(first) ? first : "0";
+    const bucket = buckets.get(letter);
+    if (bucket) bucket.aliases[aliasKey] = targetKey;
+  }
+  return buckets; // Map<letter, shardObject>
+}
+
+// Auto-store local shard files (or full index) as soon as the user picks them
+elements.shardFileInput.addEventListener("change", async () => {
+  const files = elements.shardFileInput.files;
+  if (!files.length) return;
+
+  const uploaded = [];
+  const failed = [];
+
+  for (const file of files) {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      if (!data.employers) {
+        failed.push(file.name);
+        continue;
+      }
+
+      const isFullIndex = /sponsorship-index\.json$/i.test(file.name);
+
+      if (isFullIndex) {
+        // Partition the full index into per-letter shards and store each one
+        const buckets = shardFullIndex(data);
+        for (const [letter, shard] of buckets) {
+          await LocalShardDB.set(letter, shard);
+          uploaded.push(letter);
+        }
+      } else {
+        // Single shard file — determine its letter from filename or first employer key
+        const match = file.name.match(/sponsorship-([A-Z0])/i);
+        let letter = match ? match[1].toUpperCase() : null;
+        if (!letter) {
+          const firstKey = Object.keys(data.employers)[0] || "";
+          const firstChar = firstKey[0]?.toUpperCase() || "";
+          letter = /[A-Z]/.test(firstChar) ? firstChar : (firstChar ? "0" : null);
+        }
+        if (!letter) { failed.push(file.name); continue; }
+        await LocalShardDB.set(letter, data);
+        uploaded.push(letter);
+      }
+    } catch {
+      failed.push(file.name);
+    }
+  }
+
+  // Tell the background to invalidate its in-memory promise cache for uploaded letters
+  if (uploaded.length) {
+    chrome.runtime.sendMessage({ type: "CLEAR_SHARD_CACHE", letters: uploaded });
+  }
+
+  const msg = [
+    uploaded.length ? `Stored locally: ${[...new Set(uploaded)].sort().join(", ")}.` : "",
+    failed.length ? `Failed to read: ${failed.join(", ")}.` : ""
+  ].filter(Boolean).join(" ");
+  setStatus(msg || "No valid shard files found.", uploaded.length ? "info" : "warning");
+
+  elements.shardFileInput.value = "";
+  loadSettings(); // refresh the "X letters stored" status line
+});
+
+// Clear all local shard files
+elements.clearShardsBtn.addEventListener("click", async () => {
+  await LocalShardDB.clear();
+  // Clear entire in-memory shard cache so background re-fetches from remote
+  const ALL_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0".split("");
+  chrome.runtime.sendMessage({ type: "CLEAR_SHARD_CACHE", letters: ALL_LETTERS });
+  updateLocalShardsStatus([]);
+  setStatus("Local shard files cleared. Data will be fetched from the remote URL on next lookup.", "info");
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
 setStatus("Loading sponsorship data…");
 loadPanelData();

@@ -14,14 +14,53 @@
           <h1 id="companyHeading">No job detected</h1>
           <p id="jobHeading" class="muted">Open a job post to see sponsorship history.</p>
         </div>
-        <button id="reloadBtn" class="reload-btn" title="Reload data" aria-label="Reload sponsorship data">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 2v6h-6"/>
-            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
-            <path d="M3 22v-6h6"/>
-            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
-          </svg>
-        </button>
+        <div class="header-actions">
+          <button id="reloadBtn" class="icon-btn" title="Reload data" aria-label="Reload sponsorship data">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 2v6h-6"/>
+              <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+              <path d="M3 22v-6h6"/>
+              <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+            </svg>
+          </button>
+          <button id="settingsBtn" class="icon-btn" title="Data settings" aria-label="Open data settings" aria-expanded="false">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- Settings drawer (toggled by gear icon) -->
+      <section id="settingsDrawer" class="settings-drawer" hidden>
+        <h2 class="section-title">Data settings</h2>
+
+        <div class="settings-group">
+          <label for="customUrlInput">Custom data URL</label>
+          <input id="customUrlInput" type="url"
+            placeholder="https://github.com/username/h1b-scout/releases/latest/download"
+            autocomplete="off">
+          <p class="source-note">Point to a different GitHub fork or any static file host that serves the shard JSON files. Leave blank to use the built-in default.</p>
+          <div class="settings-actions">
+            <button type="button" id="saveUrlBtn">Save URL</button>
+            <button type="button" id="resetUrlBtn" class="btn-secondary">Reset to default</button>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <label for="shardFileInput">Local offline files</label>
+          <p class="source-note">
+            Use when the extension can't reach GitHub. Pick either the full
+            <code>sponsorship-index.json</code> (generated locally via <code>prepare-data.mjs</code>)
+            or individual <code>sponsorship-A.json</code> shard files downloaded from the
+            <a href="https://github.com/vamsi2577/h1b-scout/releases/latest" target="_blank" rel="noreferrer">GitHub Release page</a>.
+            Files are stored in your browser and used without any network fetch.
+          </p>
+          <input id="shardFileInput" type="file" accept=".json" multiple>
+          <p id="localShardsStatus" class="source-note local-shards-status">No local files stored.</p>
+          <button type="button" id="clearShardsBtn" class="btn-secondary">Clear local files</button>
+        </div>
       </section>
 
       <form id="lookupForm" class="edit-form">
@@ -92,6 +131,7 @@
 
     <script src="../shared/normalization.js"></script>
     <script src="../shared/lookup.js"></script>
+    <script src="../shared/local-db.js"></script>
     <script src="panel.js"></script>
   </body>
 </html>

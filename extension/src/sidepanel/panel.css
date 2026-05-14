@@ -15,6 +15,9 @@
   box-sizing: border-box;
 }
 
+/* Prevent author display rules from overriding the hidden attribute */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg);
@@ -35,6 +38,44 @@ main {
   padding-bottom: 12px;
 }
 
+.header-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* shared style for reload + settings icon buttons */
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: unset;
+  padding: 5px;
+}
+
+.icon-btn:hover {
+  background: #e8f1ef;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.icon-btn.active {
+  background: #e8f1ef;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.icon-btn.spinning svg {
+  animation: spin 0.6s linear infinite;
+}
+
+/* keep old class working in case anything references it */
 .reload-btn {
   background: transparent;
   border: 1px solid var(--line);
@@ -58,6 +99,87 @@ main {
 
 .reload-btn.spinning svg {
   animation: spin 0.6s linear infinite;
+}
+
+/* ── Settings drawer ───────────────────────────────────────────────────────── */
+.settings-drawer {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  padding: 14px;
+}
+
+.settings-group {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-group > label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settings-group > input[type="url"],
+.settings-group > input[type="file"] {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 7px 10px;
+  width: 100%;
+}
+
+.settings-group > input[type="file"] {
+  cursor: pointer;
+  padding: 6px 8px;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-actions button,
+.settings-group > .btn-secondary {
+  font-size: 12px;
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
+.settings-actions button {
+  flex: 1;
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.btn-secondary:hover {
+  background: #f0f2f5;
+  border-color: #aab0bb;
+  color: var(--text);
+}
+
+.local-shards-status {
+  background: #f0f8f6;
+  border: 1px solid #c3dcd8;
+  border-radius: 5px;
+  padding: 6px 9px;
+}
+
+code {
+  background: #eef0f4;
+  border-radius: 3px;
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+  font-size: 11px;
+  padding: 1px 4px;
 }
 
 @keyframes spin {
@@ -135,13 +257,20 @@ button:hover {
 }
 
 .status {
-  background: #fff7df;
-  border: 1px solid #ead28c;
   border-radius: 6px;
-  color: var(--warn);
   font-size: 13px;
   line-height: 1.4;
   padding: 10px;
+  /* default: warning */
+  background: #fff7df;
+  border: 1px solid #ead28c;
+  color: var(--warn);
+}
+
+.status.info {
+  background: #e8f1ef;
+  border-color: #a8cfc9;
+  color: var(--accent-dark);
 }
 
 .coverage {

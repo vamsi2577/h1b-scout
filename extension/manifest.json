@@ -19,7 +19,8 @@
         "https://*.workdayjobs.com/*",
         "https://jobs.lever.co/*",
         "https://jobs.ashbyhq.com/*",
-        "https://www.linkedin.com/jobs/*"
+        "https://www.linkedin.com/jobs/*",
+        "https://www.linkedin.com/preload/*"
       ],
       "js": [
         "src/shared/normalization.js",

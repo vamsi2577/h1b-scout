@@ -1,4 +1,4 @@
-importScripts("shared/normalization.js", "shared/lookup.js");
+importScripts("shared/normalization.js", "shared/lookup.js", "shared/local-db.js");
 
 // ── Data source ─────────────────────────────────────────────────────────────
 // Base URL for the per-letter shard files on GitHub Releases.
@@ -24,18 +24,26 @@ function shardLetter(companyName) {
   return /[A-Z]/.test(first) ? first : "0";
 }
 
-function shardUrl(letter) {
-  return `${BASE_RELEASE_URL}/sponsorship-${letter}.json`;
+async function shardUrl(letter) {
+  const { customBaseUrl = "" } = await chrome.storage.local.get("customBaseUrl");
+  const base = (customBaseUrl || "").trim() || BASE_RELEASE_URL;
+  return `${base}/sponsorship-${letter}.json`;
 }
 
 // ── Shard loading ─────────────────────────────────────────────────────────────
-// Each letter shard is fetched once, cached in the Cache API, and kept in memory.
-// Staleness is tracked per-letter in chrome.storage.local under "shardCachedAt".
+// Priority: locally-uploaded file in IndexedDB → remote URL (custom or default)
+// Remote copies are cached in the Cache API; staleness is tracked per-letter
+// in chrome.storage.local under "shardCachedAt".
 async function loadShard(letter) {
   if (shardPromises.has(letter)) return shardPromises.get(letter);
 
   const promise = (async () => {
-    const url = shardUrl(letter);
+    // 1. Check for a locally uploaded shard first (survives offline, no network needed)
+    const local = await LocalShardDB.get(letter).catch(() => null);
+    if (local) return local;
+
+    // 2. Fetch from remote (respects custom URL override)
+    const url = await shardUrl(letter);
     const cache = await caches.open(CACHE_NAME);
     const { shardCachedAt = {} } = await chrome.storage.local.get("shardCachedAt");
     const isStale = Date.now() - (shardCachedAt[letter] || 0) > STALE_AFTER_MS;
@@ -58,11 +66,11 @@ async function loadShard(letter) {
     } catch (fetchError) {
       const stale = await cache.match(url);
       if (stale) {
-        console.warn(`Visa Sponsorship: shard ${letter} fetch failed, using cached copy.`, fetchError.message);
+        console.warn(`H1B Scout: shard ${letter} fetch failed, using cached copy.`, fetchError.message);
         return stale.json();
       }
       throw new Error(
-        "Unable to load sponsorship data. Check the GitHub Releases URL in background.js, ensure the repo is public, and that a data release exists."
+        "Unable to load sponsorship data. Open Settings (⚙) to set a custom data URL or upload local shard files."
       );
     }
   })().catch((error) => {
@@ -220,6 +228,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       )
       .catch((error) => sendResponse({ ok: false, error: error.message, context }));
     return true;
+  }
+
+  // ── Settings messages ──────────────────────────────────────────────────────
+
+  if (message.type === "GET_SETTINGS") {
+    Promise.all([
+      chrome.storage.local.get("customBaseUrl"),
+      LocalShardDB.keys().catch(() => [])
+    ]).then(([{ customBaseUrl = "" }, localLetters]) => {
+      sendResponse({ ok: true, customBaseUrl, localLetters });
+    }).catch(() => sendResponse({ ok: false }));
+    return true; // async
+  }
+
+  if (message.type === "SAVE_SETTINGS") {
+    const url = String(message.customBaseUrl || "").trim();
+    chrome.storage.local.set({ customBaseUrl: url }).then(() => {
+      shardPromises.clear(); // force re-fetch with new URL on next lookup
+      sendResponse({ ok: true });
+    }).catch(() => sendResponse({ ok: false }));
+    return true; // async
+  }
+
+  // Panel writes shards to IndexedDB directly; this just clears the in-memory
+  // promise cache so the next lookup re-reads from IndexedDB (or remote).
+  if (message.type === "CLEAR_SHARD_CACHE") {
+    const letters = Array.isArray(message.letters) ? message.letters : [];
+    if (letters.length === 0) {
+      shardPromises.clear();
+    } else {
+      for (const letter of letters) shardPromises.delete(letter);
+    }
+    sendResponse({ ok: true });
+    return false;
   }
 
   return false;
