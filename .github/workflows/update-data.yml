@@ -83,9 +83,19 @@ jobs:
               || echo "  ✗ $FILE (skipping)"
           done
 
-          echo "=== PERM files ==="
-          for PERM_FY in "$FY" "$PREV_FY"; do
-            FILE="PERM_Disclosure_Data_FY${PERM_FY}.xlsx"
+          echo "=== Current FY${FY} PERM (Q1 through Q${Q}) ==="
+          for QN in 1 2 3 4; do
+            if [ "$QN" -le "$Q" ]; then
+              FILE="PERM_Disclosure_Data_FY${FY}_Q${QN}.xlsx"
+              curl -fsSL "$BASE/$FILE" -o "data/raw/$FILE" \
+                && echo "  ✓ $FILE" \
+                || echo "  ✗ $FILE (not yet published, skipping)"
+            fi
+          done
+
+          echo "=== Previous FY${PREV_FY} PERM (all quarters) ==="
+          for QN in 1 2 3 4; do
+            FILE="PERM_Disclosure_Data_FY${PREV_FY}_Q${QN}.xlsx"
             curl -fsSL "$BASE/$FILE" -o "data/raw/$FILE" \
               && echo "  ✓ $FILE" \
               || echo "  ✗ $FILE (skipping)"
