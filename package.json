@@ -1,12 +1,13 @@
 {
-  "name": "visa-sponsorship-side-panel",
+  "name": "h1b-scout",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test",
     "prepare:data": "node scripts/prepare-data.mjs --out extension/data/sponsorship-index.json",
-    "data:release": "node scripts/prepare-data.mjs --out extension/data/sponsorship-index.json && node scripts/index-smoke.mjs",
+    "prepare:shards": "node scripts/prepare-data.mjs --out extension/data/sponsorship-index.json --shard-dir data/shards",
+    "data:release": "node scripts/prepare-data.mjs --out extension/data/sponsorship-index.json --shard-dir data/shards && node scripts/index-smoke.mjs",
     "smoke:index": "node scripts/index-smoke.mjs",
     "smoke:chrome": "node scripts/chrome-smoke.mjs",
     "smoke:e2e": "node scripts/e2e-smoke.mjs"

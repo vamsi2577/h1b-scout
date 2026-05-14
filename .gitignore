@@ -2,8 +2,9 @@
 .chrome-test-profile/
 .chrome-smoke-profile*/
 
-# Generated sponsorship index (large binary-ish JSON, built from DOL data)
+# Generated sponsorship index and per-letter shards (built from DOL data, never committed)
 extension/data/sponsorship-index.json
+data/shards/
 
 # Raw DOL data files
 data/raw/

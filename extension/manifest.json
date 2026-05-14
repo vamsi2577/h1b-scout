@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Visa Sponsorship Side Panel",
+  "name": "H1B Scout",
   "version": "0.2.0",
-  "description": "Shows DOL OFLC visa sponsorship statistics for job posts on Greenhouse, Workday, Lever, Ashby, and LinkedIn. Detects embedded ATS boards on company career pages.",
+  "description": "See H-1B and PERM sponsorship history for any employer — right from the job post. Supports Greenhouse, Workday, Lever, Ashby, LinkedIn, and embedded ATS boards.",
   "permissions": ["sidePanel", "tabs", "storage", "scripting"],
   "host_permissions": [
     "<all_urls>"
@@ -34,7 +34,7 @@
     "default_path": "src/sidepanel/panel.html"
   },
   "action": {
-    "default_title": "Visa Sponsorship"
+    "default_title": "H1B Scout"
   },
   "web_accessible_resources": []
 }

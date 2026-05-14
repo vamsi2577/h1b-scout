@@ -1,48 +1,64 @@
 importScripts("shared/normalization.js", "shared/lookup.js");
 
 // ── Data source ─────────────────────────────────────────────────────────────
-// URL of the hosted sponsorship index on GitHub Releases.
+// Base URL for the per-letter shard files on GitHub Releases.
 // After pushing this repo to GitHub and creating the first release (by running
-// the "Update Sponsorship Data" GitHub Action), replace the placeholder below
-// with your actual URL:
-//   https://github.com/<owner>/<repo>/releases/latest/download/sponsorship-index.json
-const REMOTE_DATA_URL =
-  "https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/releases/latest/download/sponsorship-index.json";
+// the "Update Sponsorship Data" GitHub Action), replace the placeholder below:
+//   https://github.com/<owner>/<repo>/releases/latest/download
+const BASE_RELEASE_URL =
+  "https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/releases/latest/download";
 
-const CACHE_NAME = "visa-sponsor-data-v1";
-const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // re-check weekly
+const CACHE_NAME = "visa-sponsor-data-v2";
+const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 // ── In-memory state ──────────────────────────────────────────────────────────
-let indexPromise;
+// Per-letter shard promises — loaded on demand, one per first letter of company name
+const shardPromises = new Map();
 const latestContextByTab = new Map();
 const panelEnabledTabs = new Set();
 
-// ── Index loading ─────────────────────────────────────────────────────────────
-async function loadIndex() {
-  if (indexPromise) return indexPromise;
+// ── Shard helpers ─────────────────────────────────────────────────────────────
+function shardLetter(companyName) {
+  const normalized = VisaSponsor.normalizeEmployer(companyName || "");
+  const first = (normalized || "")[0]?.toUpperCase() || "0";
+  return /[A-Z]/.test(first) ? first : "0";
+}
 
-  indexPromise = (async () => {
+function shardUrl(letter) {
+  return `${BASE_RELEASE_URL}/sponsorship-${letter}.json`;
+}
+
+// ── Shard loading ─────────────────────────────────────────────────────────────
+// Each letter shard is fetched once, cached in the Cache API, and kept in memory.
+// Staleness is tracked per-letter in chrome.storage.local under "shardCachedAt".
+async function loadShard(letter) {
+  if (shardPromises.has(letter)) return shardPromises.get(letter);
+
+  const promise = (async () => {
+    const url = shardUrl(letter);
     const cache = await caches.open(CACHE_NAME);
-    const { dataCachedAt } = await chrome.storage.local.get("dataCachedAt");
-    const isStale = Date.now() - (dataCachedAt || 0) > STALE_AFTER_MS;
+    const { shardCachedAt = {} } = await chrome.storage.local.get("shardCachedAt");
+    const isStale = Date.now() - (shardCachedAt[letter] || 0) > STALE_AFTER_MS;
 
     // Serve from cache when fresh
     if (!isStale) {
-      const cached = await cache.match(REMOTE_DATA_URL);
+      const cached = await cache.match(url);
       if (cached) return cached.json();
     }
 
     // Fetch a fresh copy; on failure fall back to the stale cached copy
     try {
-      const response = await fetch(REMOTE_DATA_URL);
+      const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      await cache.put(REMOTE_DATA_URL, response.clone());
-      await chrome.storage.local.set({ dataCachedAt: Date.now() });
+      await cache.put(url, response.clone());
+      // Re-read before writing to avoid clobbering concurrent shard fetches
+      const { shardCachedAt: current = {} } = await chrome.storage.local.get("shardCachedAt");
+      await chrome.storage.local.set({ shardCachedAt: { ...current, [letter]: Date.now() } });
       return response.json();
     } catch (fetchError) {
-      const stale = await cache.match(REMOTE_DATA_URL);
+      const stale = await cache.match(url);
       if (stale) {
-        console.warn("Visa Sponsorship: data fetch failed, using cached copy.", fetchError.message);
+        console.warn(`Visa Sponsorship: shard ${letter} fetch failed, using cached copy.`, fetchError.message);
         return stale.json();
       }
       throw new Error(
@@ -50,17 +66,24 @@ async function loadIndex() {
       );
     }
   })().catch((error) => {
-    indexPromise = null; // allow retry on next panel open
+    shardPromises.delete(letter); // allow retry on next panel open
     throw error;
   });
 
-  return indexPromise;
+  shardPromises.set(letter, promise);
+  return promise;
 }
 
 async function refreshPanel(context) {
-  const index = await loadIndex();
-  const lookup = VisaSponsor.lookupSponsorship(index, context.companyName, context.jobTitle);
-  return { lookup, generatedAt: index.metadata?.generatedAt || null };
+  // When no company is known, return an empty result without fetching any shard
+  if (!context.companyName) {
+    const empty = VisaSponsor.lookupSponsorship({ metadata: {}, employers: {}, aliases: {} }, "", "");
+    return { lookup: empty, generatedAt: null };
+  }
+  const letter = shardLetter(context.companyName);
+  const shard = await loadShard(letter);
+  const lookup = VisaSponsor.lookupSponsorship(shard, context.companyName, context.jobTitle);
+  return { lookup, generatedAt: shard.metadata?.generatedAt || null };
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────

@@ -94,7 +94,9 @@ jobs:
           echo "Downloaded files:"
           ls -lh data/raw/ || echo "(none)"
 
-      # ── Build the sponsorship index ─────────────────────────────────────────
+      # ── Build the sponsorship index + per-letter shards ────────────────────────
+      # --out writes the full index (used only by the smoke test, not uploaded)
+      # --shard-dir writes sponsorship-A.json … sponsorship-Z.json (released assets)
       - name: Build sponsorship index
         env:
           FY: ${{ steps.period.outputs.FY }}
@@ -124,16 +126,22 @@ jobs:
             $LCA_ARGS \
             $PERM_ARGS \
             --coverage "$COVERAGE" \
-            --out extension/data/sponsorship-index.json
+            --out extension/data/sponsorship-index.json \
+            --shard-dir data/shards
 
           echo ""
-          echo "Index size: $(ls -lh extension/data/sponsorship-index.json | awk '{print $5}')"
+          echo "Full index size : $(ls -lh extension/data/sponsorship-index.json | awk '{print $5}')"
+          echo "Shard count     : $(ls data/shards/sponsorship-*.json | wc -l)"
+          echo "Largest shard   : $(ls -lhS data/shards/sponsorship-*.json | head -1 | awk '{print $5, $9}')"
 
       # ── Validate the index ──────────────────────────────────────────────────
       - name: Validate index (smoke test)
         run: node scripts/index-smoke.mjs
 
-      # ── Publish as a GitHub Release ─────────────────────────────────────────
+      # ── Publish shards as a GitHub Release ─────────────────────────────────
+      # Only the per-letter shards are uploaded (each ~5 MB compressed).
+      # The full 125 MB sponsorship-index.json is NOT uploaded — it is only
+      # used locally by the smoke test above.
       - name: Get release date
         id: date
         run: echo "date=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
@@ -144,10 +152,13 @@ jobs:
           tag_name: data-${{ steps.date.outputs.date }}
           name: "Sponsorship data — ${{ steps.date.outputs.date }}"
           body: |
-            Automated update of the DOL OFLC sponsorship index.
+            Automated update of the DOL OFLC sponsorship index (per-letter shards).
+
+            The extension fetches only the shard for the first letter of the company
+            being looked up (~1–5 MB per shard), rather than the full 125 MB index.
 
             **Coverage:** ${{ github.event.inputs.coverage || format('FY{0} Q{1} + FY{2}', steps.period.outputs.FY, steps.period.outputs.Q, steps.period.outputs.PREV_FY) }}
             **Generated:** ${{ steps.date.outputs.date }}
             **Source:** [DOL OFLC Performance Data](https://www.dol.gov/agencies/eta/foreign-labor/performance)
-          files: extension/data/sponsorship-index.json
+          files: data/shards/sponsorship-*.json
           make_latest: true

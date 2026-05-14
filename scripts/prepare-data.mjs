@@ -43,12 +43,13 @@ function normalizeTitle(value) {
 }
 
 function parseArgs(argv) {
-  const args = { lca: [], perm: [], out: "extension/data/sponsorship-index.json", coverage: "FY2026 Q1 + FY2025", partialYear: null };
+  const args = { lca: [], perm: [], out: "extension/data/sponsorship-index.json", shardDir: null, coverage: "FY2026 Q1 + FY2025", partialYear: null };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--lca") args.lca.push(argv[++index]);
     else if (arg === "--perm") args.perm.push(argv[++index]);
     else if (arg === "--out") args.out = argv[++index];
+    else if (arg === "--shard-dir") args.shardDir = argv[++index];
     else if (arg === "--coverage") args.coverage = argv[++index];
     else if (arg === "--partial-year") args.partialYear = Number(argv[++index]);
     else if (arg === "--help") args.help = true;
@@ -312,6 +313,37 @@ export async function buildIndex({ lca = [], perm = [], coverage = "FY2026 Q1 + 
   return finalizeIndex(index);
 }
 
+function writeShards(index, shardDir) {
+  const outDir = path.resolve(rootDir, shardDir);
+  fs.mkdirSync(outDir, { recursive: true });
+
+  // Partition employers by first letter of their normalized key (A-Z or "0" for digits/symbols)
+  const buckets = new Map();
+  for (const [key, employer] of Object.entries(index.employers)) {
+    const first = key[0]?.toUpperCase() || "0";
+    const letter = /[A-Z]/.test(first) ? first : "0";
+    if (!buckets.has(letter)) {
+      buckets.set(letter, { metadata: index.metadata, employers: {}, aliases: {} });
+    }
+    buckets.get(letter).employers[key] = employer;
+  }
+
+  // Partition aliases by the same first-letter rule as their alias key
+  for (const [aliasKey, targetKey] of Object.entries(index.aliases || {})) {
+    const first = aliasKey[0]?.toUpperCase() || "0";
+    const letter = /[A-Z]/.test(first) ? first : "0";
+    const bucket = buckets.get(letter);
+    if (bucket) bucket.aliases[aliasKey] = targetKey;
+  }
+
+  for (const [letter, shard] of buckets) {
+    const filePath = path.join(outDir, `sponsorship-${letter}.json`);
+    fs.writeFileSync(filePath, `${JSON.stringify(shard)}\n`);
+  }
+
+  return { buckets: buckets.size, total: Object.keys(index.employers).length };
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
@@ -320,10 +352,20 @@ async function main() {
   }
 
   const index = await buildIndex(args);
-  const outPath = path.resolve(rootDir, args.out);
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, `${JSON.stringify(index)}\n`);
-  console.log(`Wrote ${Object.keys(index.employers).length} employers to ${outPath}`);
+  const employerCount = Object.keys(index.employers).length;
+
+  if (args.out) {
+    const outPath = path.resolve(rootDir, args.out);
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, `${JSON.stringify(index)}\n`);
+    console.log(`Wrote ${employerCount} employers to ${outPath}`);
+  }
+
+  if (args.shardDir) {
+    const { buckets } = writeShards(index, args.shardDir);
+    const resolvedDir = path.resolve(rootDir, args.shardDir);
+    console.log(`Wrote ${employerCount} employers across ${buckets} letter shards to ${resolvedDir}/`);
+  }
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
