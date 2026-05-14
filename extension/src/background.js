@@ -6,7 +6,7 @@ importScripts("shared/normalization.js", "shared/lookup.js");
 // the "Update Sponsorship Data" GitHub Action), replace the placeholder below:
 //   https://github.com/<owner>/<repo>/releases/latest/download
 const BASE_RELEASE_URL =
-  "https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/releases/latest/download";
+  "https://github.com/vamsi2577/h1b-scout/releases/latest/download";
 
 const CACHE_NAME = "visa-sponsor-data-v2";
 const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
