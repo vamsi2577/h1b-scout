@@ -125,6 +125,16 @@
     return signals;
   }
 
+  // Listen for scroll-to requests from the side panel
+  if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message.type === "SCROLL_TO_SIGNAL" && message.text) {
+        // window.find highlights and scrolls to the text natively in Chrome
+        window.find(message.text, false /* case */, false /* backwards */, true /* wrap */);
+      }
+    });
+  }
+
   root.VisaSponsor = {
     ...(root.VisaSponsor || {}),
     extractSignals

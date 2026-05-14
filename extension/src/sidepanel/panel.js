@@ -80,6 +80,13 @@ function renderYearBreakdown(lookup) {
   }
 }
 
+async function scrollToSignalText(text) {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id) {
+    chrome.tabs.sendMessage(tab.id, { type: "SCROLL_TO_SIGNAL", text });
+  }
+}
+
 function renderSignals(signals) {
   elements.signalsList.replaceChildren();
   if (!signals?.length) {
@@ -97,6 +104,9 @@ function renderSignals(signals) {
       const quote = document.createElement("span");
       quote.textContent = `"${signal.quote}"`;
       chip.append(quote);
+      chip.classList.add("clickable");
+      chip.title = "Click to jump to this text in the page";
+      chip.addEventListener("click", () => scrollToSignalText(signal.quote));
     }
     elements.signalsList.append(chip);
   }
@@ -133,7 +143,7 @@ function render(payload) {
   elements.confidenceLabel.textContent = lookup.confidence === "none" ? "No match" : `${lookup.confidence} match`;
 
   if (!company && !title) {
-    setStatus("Open a supported Greenhouse or Workday job post, or enter a company and title manually.");
+    setStatus("Open a job post on Greenhouse, Workday, Lever, or Ashby — or enter a company and title manually.");
   } else if (!lookup.employerMatch) {
     setStatus("No employer match found in the local OFLC index. Try editing the company name.");
   } else if (!lookup.combined.lca.employerTotal && !lookup.combined.perm.employerTotal) {

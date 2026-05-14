@@ -279,6 +279,15 @@ dd {
   color: #6b4a00;
 }
 
+.signal-chip.clickable {
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.signal-chip.clickable:hover {
+  filter: brightness(0.94);
+}
+
 .signal-chip strong {
   display: block;
   font-size: 12px;
