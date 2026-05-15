@@ -1,6 +1,6 @@
 # H1B Scout
 
-![H1B Scout](src/icons/h1b_scout_icon_128.png)
+![H1B Scout](extension/icons/icon-128.png)
 
 A Chrome extension that shows H-1B LCA and PERM sponsorship history for any employer — right from the job post. Open the side panel on any supported job board and instantly see how many sponsorships the company has filed, broken down by year and job title.
 
