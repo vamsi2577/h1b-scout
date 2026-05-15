@@ -149,8 +149,29 @@ async function* readRows(filePath) {
       throw new Error(`Reading ${ext} requires optional dependency "xlsx". Export ${filePath} to CSV or run npm install.`);
     }
     const lib = xlsx.default ?? xlsx; // CJS package — dynamic import wraps it in .default
+
+    // SheetJS readFile is synchronous and loads the entire file — log before so the user
+    // knows it's not frozen (large files can take 10–30s before the first row appears).
+    const fileSizeKb = Math.round(fs.statSync(absolutePath).size / 1024);
+    process.stderr.write(`    loading ${fileSizeKb.toLocaleString()} KB into memory via SheetJS...\n`);
+    const loadStart = Date.now();
     const workbook = lib.readFile(absolutePath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    process.stderr.write(`    file loaded in ${elapsed(loadStart)} — sheets: [${workbook.SheetNames.join(", ")}]\n`);
+
+    // DOL OFLC XLSX files have a cover/info sheet as sheet[0] and the data on sheet[1].
+    // Pick the sheet with the most rows (non-empty), falling back to the last sheet.
+    let dataSheetName = workbook.SheetNames[0];
+    let maxRows = 0;
+    for (const name of workbook.SheetNames) {
+      const ref = workbook.Sheets[name]["!ref"];
+      if (!ref) continue;
+      const range = lib.utils.decode_range(ref);
+      const rows = range.e.r - range.s.r; // approximate row count from range
+      if (rows > maxRows) { maxRows = rows; dataSheetName = name; }
+    }
+    process.stderr.write(`    using sheet "${dataSheetName}" (~${maxRows.toLocaleString()} data rows)\n`);
+
+    const sheet = workbook.Sheets[dataSheetName];
     for (const row of lib.utils.sheet_to_json(sheet, { defval: "" })) {
       yield Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeColumn(key), String(value ?? "")]));
     }
@@ -285,6 +306,10 @@ function elapsed(startMs) {
   return `${s}s`;
 }
 
+function timestamp() {
+  return new Date().toTimeString().slice(0, 8); // HH:MM:SS
+}
+
 export async function buildIndex({ lca = [], perm = [], coverage = "FY2026 Q1 + FY2025", partialYear = null }) {
   const fiscalYears = new Set();
   const index = {
@@ -313,7 +338,7 @@ export async function buildIndex({ lca = [], perm = [], coverage = "FY2026 Q1 + 
       recordRow(index, "lca", fiscalYear, row);
       rowCount += 1;
       if (rowCount % 100_000 === 0) {
-        process.stderr.write(`    ${rowCount.toLocaleString()} rows (${elapsed(fileStart)}, ${Object.keys(index.employers).length.toLocaleString()} employers so far)\n`);
+        process.stderr.write(`    [${timestamp()}] ${rowCount.toLocaleString()} rows — ${elapsed(fileStart)} elapsed, ${Object.keys(index.employers).length.toLocaleString()} employers\n`);
       }
     }
     process.stderr.write(`  [LCA] ${path.basename(filePath)} done — ${rowCount.toLocaleString()} rows in ${elapsed(fileStart)}\n`);
@@ -329,7 +354,7 @@ export async function buildIndex({ lca = [], perm = [], coverage = "FY2026 Q1 + 
       recordRow(index, "perm", fiscalYear, row);
       rowCount += 1;
       if (rowCount % 50_000 === 0) {
-        process.stderr.write(`    ${rowCount.toLocaleString()} rows (${elapsed(fileStart)}, ${Object.keys(index.employers).length.toLocaleString()} employers so far)\n`);
+        process.stderr.write(`    [${timestamp()}] ${rowCount.toLocaleString()} rows — ${elapsed(fileStart)} elapsed, ${Object.keys(index.employers).length.toLocaleString()} employers\n`);
       }
     }
     process.stderr.write(`  [PERM] ${path.basename(filePath)} done — ${rowCount.toLocaleString()} rows in ${elapsed(fileStart)}\n`);
