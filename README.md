@@ -1,96 +1,96 @@
 # H1B Scout
 
-Chrome Manifest V3 extension that detects company and job title on Greenhouse and Workday job posts, then shows local DOL OFLC sponsorship statistics in Chrome's side panel.
+![H1B Scout](h1b_scout_icons/h1b_scout_icon_128.png)
 
-## Load the extension
+A Chrome extension that shows H-1B LCA and PERM sponsorship history for any employer — right from the job post. Open the side panel on any supported job board and instantly see how many sponsorships the company has filed, broken down by year and job title.
 
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Choose **Load unpacked**.
-4. Select the `extension` folder.
+**Supported job boards:** Greenhouse, Workday, Lever, Ashby, LinkedIn
 
-## Build the local sponsorship index
+---
 
-The extension reads `extension/data/sponsorship-index.json`. A small empty index is included so the UI works immediately.
+## Install (developer mode)
 
-To generate a real index, download the official DOL OFLC disclosure files from:
+1. Open `chrome://extensions`
+2. Enable **Developer mode**
+3. Click **Load unpacked** → select the `extension` folder
 
-- https://www.dol.gov/agencies/eta/foreign-labor/performance
+---
 
-Use FY2026 current published files plus FY2025 files. Export the official `.xlsx` files to CSV, or install the optional `xlsx` package and pass the `.xlsx` files directly.
+## Data
 
-Example:
+Sponsorship data comes from the [DOL OFLC Performance Data](https://www.dol.gov/agencies/eta/foreign-labor/performance) — the official public disclosure files for H-1B LCA and PERM applications.
+
+The extension fetches per-letter index shards from the [latest GitHub Release](https://github.com/vamsi2577/h1b-scout/releases/latest) on first use and caches them locally. No data is ever sent to any server — all lookups happen in your browser.
+
+### Build the index locally
+
+To build and host your own data (e.g. after a new DOL quarterly release):
 
 ```powershell
-node scripts/prepare-data.mjs `
-  --lca data/raw/LCA_Disclosure_Data_FY2026_Q1.csv `
-  --lca data/raw/LCA_Disclosure_Data_FY2025_Q1.csv `
-  --lca data/raw/LCA_Disclosure_Data_FY2025_Q2.csv `
-  --lca data/raw/LCA_Disclosure_Data_FY2025_Q3.csv `
-  --lca data/raw/LCA_Disclosure_Data_FY2025_Q4.csv `
-  --perm data/raw/PERM_Disclosure_Data_FY2026_Q1.csv `
-  --perm data/raw/PERM_Disclosure_Data_FY2025.csv `
-  --coverage "FY2026 Q1 + FY2025" `
-  --out extension/data/sponsorship-index.json
+# Downloads DOL files, builds index + shards, runs smoke test
+npm run data:local
 ```
 
-## Test
+Options:
+```powershell
+node scripts/build-local.mjs --skip-download        # reuse files already in data/raw/
+node scripts/build-local.mjs --fy 2026 --coverage "FY2026 Q1 + FY2025"
+```
 
-### Unit tests
+### Automated quarterly updates
+
+A GitHub Actions workflow (`.github/workflows/update-data.yml`) runs on the 1st of Feb, May, Aug, and Nov — when DOL typically publishes new quarterly data. It downloads the XLSX files, builds the index, and publishes a new GitHub Release automatically.
+
+To trigger manually:
+```powershell
+gh workflow run update-data.yml --field 'coverage=FY2026 Q1 + FY2025'
+```
+
+---
+
+## Settings
+
+Click the ⚙ gear icon in the side panel to:
+
+- **Custom data URL** — point to a different GitHub fork or static host serving the shard JSON files
+- **Local offline files** — upload shard files directly for fully offline use (no network required)
+
+---
+
+## Development
+
+### Run tests
 
 ```powershell
-node --test
-# or
 npm test
 ```
 
-### Chrome smoke test (service worker only, no browser window needed)
+### Chrome smoke test (service worker only)
 
-Requires Chrome running with remote debugging. Start it first:
-
+Start Chrome with remote debugging:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\launch-chrome.ps1
 ```
 
-Then in a second terminal:
-
+Then:
 ```powershell
 npm run smoke:chrome
 ```
 
-This verifies the service worker starts, loads the index, and can run a lookup — no page navigation required.
+### End-to-end test against live job posts
 
-### End-to-end test against real job postings
-
-With Chrome still running (from `launch-chrome.ps1`):
+With Chrome running (from `launch-chrome.ps1`):
 
 ```powershell
 npm run smoke:e2e
 ```
 
-This opens real Greenhouse and Workday job pages, waits for the content script to detect the job, and verifies the sponsorship data is returned. Defaults:
-
-| Platform   | Default test URL |
-|------------|-----------------|
-| Greenhouse | `boards.greenhouse.io/vercel/jobs/5370875004` |
-| Workday    | `nvidia.wd5.myworkdayjobs.com/...` |
-
-Override with your own URLs:
-
+Override test URLs:
 ```powershell
-npm run smoke:e2e -- --greenhouse-url "https://boards.greenhouse.io/acme/jobs/123" `
-                     --workday-url "https://acme.myworkdayjobs.com/..."
+npm run smoke:e2e -- --greenhouse-url "https://boards.greenhouse.io/acme/jobs/123"
 ```
 
-Skip a platform if needed:
-
-```powershell
-npm run smoke:e2e -- --skip-workday
-```
-
-### Index validation (requires a real data file)
-
-After running `prepare:data`:
+### Validate the index after a local build
 
 ```powershell
 npm run smoke:index
