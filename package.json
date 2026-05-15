@@ -15,5 +15,8 @@
   },
   "optionalDependencies": {
     "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "exceljs": "^4.4.0"
   }
 }

@@ -142,40 +142,47 @@ async function* readRows(filePath) {
   }
 
   if (ext === ".xlsx" || ext === ".xls") {
-    let xlsx;
+    // DOL OFLC XLSX worksheets expand to ~500 MB of XML — SheetJS 0.18.x loads
+    // the entire XML into memory at once and silently returns 0 rows on files this
+    // large.  Use exceljs's SAX-based streaming reader instead: it yields rows one
+    // at a time and never needs the full XML in memory.
+    let ExcelJS;
     try {
-      xlsx = await import("xlsx");
+      ExcelJS = (await import("exceljs")).default;
     } catch {
-      throw new Error(`Reading ${ext} requires optional dependency "xlsx". Export ${filePath} to CSV or run npm install.`);
+      throw new Error(`Reading ${ext} requires "exceljs". Run: npm install exceljs`);
     }
-    const lib = xlsx.default ?? xlsx; // CJS package — dynamic import wraps it in .default
 
-    // SheetJS readFile is synchronous and loads the entire file — log before so the user
-    // knows it's not frozen (large files can take 10–30s before the first row appears).
     const fileSizeKb = Math.round(fs.statSync(absolutePath).size / 1024);
-    process.stderr.write(`    loading ${fileSizeKb.toLocaleString()} KB into memory via SheetJS...\n`);
-    const loadStart = Date.now();
-    const workbook = lib.readFile(absolutePath);
-    process.stderr.write(`    file loaded in ${elapsed(loadStart)} — sheets: [${workbook.SheetNames.join(", ")}]\n`);
+    process.stderr.write(`    streaming ${fileSizeKb.toLocaleString()} KB via exceljs SAX parser...\n`);
 
-    // DOL OFLC XLSX files sometimes have a cover/info sheet before the data sheet.
-    // Pick the sheet with the most rows; fall back to the last sheet name if none
-    // have a usable "!ref" (can happen with hidden/special sheets in SheetJS).
-    let dataSheetName = workbook.SheetNames[workbook.SheetNames.length - 1];
-    let maxRows = -1;
-    for (const name of workbook.SheetNames) {
-      const sheet = workbook.Sheets[name]; // may be undefined for hidden sheets
-      const ref = sheet?.["!ref"];
-      if (!ref) continue;
-      const range = lib.utils.decode_range(ref);
-      const rows = range.e.r - range.s.r;
-      if (rows > maxRows) { maxRows = rows; dataSheetName = name; }
+    const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(absolutePath, {
+      sharedStrings: "cache",   // hold shared-strings table in memory (~few MB)
+      hyperlinks: "ignore",
+      styles: "ignore",
+      worksheets: "emit",       // emit worksheet events as they stream
+    });
+
+    let headers = null;
+    let sheetCount = 0;
+
+    for await (const worksheet of workbookReader) {
+      sheetCount += 1;
+      process.stderr.write(`    sheet ${sheetCount}: "${worksheet.name}"\n`);
+      for await (const row of worksheet) {
+        // row.values is 1-indexed (index 0 is undefined); slice from 1
+        const values = (row.values ?? []).slice(1).map(v => String(v ?? ""));
+        if (!headers) {
+          headers = values.map(normalizeColumn);
+          continue;
+        }
+        yield Object.fromEntries(headers.map((h, i) => [h, values[i] ?? ""]));
+      }
+      break; // only the first worksheet contains data
     }
-    process.stderr.write(`    using sheet "${dataSheetName}"${maxRows >= 0 ? ` (~${maxRows.toLocaleString()} rows)` : ""}\n`);
 
-    const sheet = workbook.Sheets[dataSheetName];
-    for (const row of lib.utils.sheet_to_json(sheet, { defval: "" })) {
-      yield Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeColumn(key), String(value ?? "")]));
+    if (!headers) {
+      process.stderr.write(`    warning: no rows yielded from ${path.basename(filePath)}\n`);
     }
     return;
   }
