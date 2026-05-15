@@ -165,10 +165,7 @@ jobs:
           tag_name: data-${{ steps.date.outputs.date }}
           name: "Sponsorship data — ${{ steps.date.outputs.date }}"
           body: |
-            Automated update of the DOL OFLC sponsorship index (per-letter shards).
-
-            The extension fetches only the shard for the first letter of the company
-            being looked up (~1–5 MB per shard), rather than the full 125 MB index.
+            Automated update of the DOL OFLC sponsorship index.
 
             **Coverage:** ${{ github.event.inputs.coverage || format('FY{0} Q{1} + FY{2}', steps.period.outputs.FY, steps.period.outputs.Q, steps.period.outputs.PREV_FY) }}
             **Generated:** ${{ steps.date.outputs.date }}
