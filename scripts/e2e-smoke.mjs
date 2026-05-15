@@ -1,5 +1,5 @@
 /**
- * End-to-end smoke test for the Visa Sponsorship Side Panel extension.
+ * End-to-end smoke test for the H1B Scout extension.
  *
  * Requires Chrome already running with:
  *   --remote-debugging-port=9222
@@ -94,7 +94,7 @@ async function findExtension() {
       const client = await cdpConnect(candidate.webSocketDebuggerUrl);
       await client.send("Runtime.enable");
       const manifest = await cdpEval(client, "chrome.runtime.getManifest()");
-      if (manifest.name === "Visa Sponsorship Side Panel") {
+      if (manifest.name === "H1B Scout") {
         const extensionId = new URL(candidate.url).hostname;
         return { workerClient: client, extensionId };
       }
@@ -265,7 +265,7 @@ async function main() {
   const passed = [];
   const failed = [];
 
-  console.log("Visa Sponsorship Side Panel — E2E Smoke Test");
+  console.log("H1B Scout — E2E Smoke Test");
   console.log("─".repeat(52));
 
   console.log("\nConnecting to extension service worker...");

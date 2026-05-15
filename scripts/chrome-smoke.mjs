@@ -65,7 +65,7 @@ async function main() {
       const candidateClient = await connect(candidate.webSocketDebuggerUrl);
       await candidateClient.send("Runtime.enable");
       const candidateManifest = await evaluate(candidateClient, "chrome.runtime.getManifest()");
-      if (candidateManifest.name === "Visa Sponsorship Side Panel") {
+      if (candidateManifest.name === "H1B Scout") {
         worker = candidate;
         workerClient = candidateClient;
         manifest = candidateManifest;
@@ -76,7 +76,7 @@ async function main() {
     if (worker) break;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  if (!worker || !workerClient || !manifest) throw new Error("Visa Sponsorship Side Panel service worker target was not found");
+  if (!worker || !workerClient || !manifest) throw new Error("H1B Scout service worker target was not found");
 
   let extensionId = process.env.EXTENSION_ID || "";
   if (worker) extensionId = new URL(worker.url).hostname;
