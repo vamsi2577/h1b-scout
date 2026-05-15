@@ -146,7 +146,8 @@ function renderSignals(signals) {
     chip.append(label);
     if (signal.quote) {
       const quote = document.createElement("span");
-      quote.textContent = `"${signal.quote}"`;
+      const truncatedQuote = truncate(signal.quote);
+      quote.textContent = `"${truncatedQuote}"`;
       chip.append(quote);
       chip.classList.add("clickable");
       chip.title = "Click to jump to this text in the page";
@@ -160,7 +161,10 @@ function renderLinks(links) {
   elements.sourceLinks.replaceChildren();
   for (const link of links || []) {
     const anchor = document.createElement("a");
-    anchor.href = link.url;
+    // Extra safety check for URLs even though they come from our own lookup.js
+    if (link.url && (link.url.startsWith("https://") || link.url.startsWith("http://"))) {
+      anchor.href = link.url;
+    }
     anchor.target = "_blank";
     anchor.rel = "noreferrer";
     anchor.textContent = link.label;
