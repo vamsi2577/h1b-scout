@@ -158,18 +158,20 @@ async function* readRows(filePath) {
     const workbook = lib.readFile(absolutePath);
     process.stderr.write(`    file loaded in ${elapsed(loadStart)} — sheets: [${workbook.SheetNames.join(", ")}]\n`);
 
-    // DOL OFLC XLSX files have a cover/info sheet as sheet[0] and the data on sheet[1].
-    // Pick the sheet with the most rows (non-empty), falling back to the last sheet.
-    let dataSheetName = workbook.SheetNames[0];
-    let maxRows = 0;
+    // DOL OFLC XLSX files sometimes have a cover/info sheet before the data sheet.
+    // Pick the sheet with the most rows; fall back to the last sheet name if none
+    // have a usable "!ref" (can happen with hidden/special sheets in SheetJS).
+    let dataSheetName = workbook.SheetNames[workbook.SheetNames.length - 1];
+    let maxRows = -1;
     for (const name of workbook.SheetNames) {
-      const ref = workbook.Sheets[name]["!ref"];
+      const sheet = workbook.Sheets[name]; // may be undefined for hidden sheets
+      const ref = sheet?.["!ref"];
       if (!ref) continue;
       const range = lib.utils.decode_range(ref);
-      const rows = range.e.r - range.s.r; // approximate row count from range
+      const rows = range.e.r - range.s.r;
       if (rows > maxRows) { maxRows = rows; dataSheetName = name; }
     }
-    process.stderr.write(`    using sheet "${dataSheetName}" (~${maxRows.toLocaleString()} data rows)\n`);
+    process.stderr.write(`    using sheet "${dataSheetName}"${maxRows >= 0 ? ` (~${maxRows.toLocaleString()} rows)` : ""}\n`);
 
     const sheet = workbook.Sheets[dataSheetName];
     for (const row of lib.utils.sheet_to_json(sheet, { defval: "" })) {
