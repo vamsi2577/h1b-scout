@@ -182,6 +182,12 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 
 // ── Message handling ──────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Validate sender is the extension itself
+  if (sender.id !== chrome.runtime.id) {
+    console.warn("Rejected message from external sender:", sender.id);
+    return;
+  }
+
   const tabId = sender.tab?.id || message.tabId;
 
   if (message.type === "JOB_CONTEXT_FOUND" && tabId) {
