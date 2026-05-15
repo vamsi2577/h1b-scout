@@ -13,9 +13,6 @@
     "smoke:chrome": "node scripts/chrome-smoke.mjs",
     "smoke:e2e": "node scripts/e2e-smoke.mjs"
   },
-  "optionalDependencies": {
-    "xlsx": "^0.18.5"
-  },
   "devDependencies": {
     "exceljs": "^4.4.0"
   }

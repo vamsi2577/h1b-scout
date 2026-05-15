@@ -3,44 +3,11 @@ import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 
+// Execute shared normalization logic to populate globalThis.VisaSponsor
+import "../extension/src/shared/normalization.js";
+const { normalizeText, normalizeEmployer, normalizeTitle } = globalThis.VisaSponsor;
+
 const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-
-const LEGAL_SUFFIXES = new Set([
-  "INC",
-  "INCORPORATED",
-  "LLC",
-  "L L C",
-  "LTD",
-  "LIMITED",
-  "CORP",
-  "CORPORATION",
-  "CO",
-  "COMPANY",
-  "LP",
-  "LLP",
-  "PLC",
-  "USA",
-  "US"
-]);
-
-function normalizeText(value) {
-  return String(value || "")
-    .toUpperCase()
-    .replace(/&/g, " AND ")
-    .replace(/[^A-Z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function normalizeEmployer(value) {
-  const tokens = normalizeText(value).split(" ").filter(Boolean);
-  while (tokens.length > 1 && LEGAL_SUFFIXES.has(tokens[tokens.length - 1])) tokens.pop();
-  return tokens.join(" ");
-}
-
-function normalizeTitle(value) {
-  return normalizeText(value);
-}
 
 function parseArgs(argv) {
   const args = { lca: [], perm: [], out: "extension/data/sponsorship-index.json", shardDir: null, coverage: "FY2026 Q1 + FY2025", partialYear: null };
@@ -61,7 +28,7 @@ function parseArgs(argv) {
 function usage() {
   return `Usage: node scripts/prepare-data.mjs --lca <file.csv|xlsx> --perm <file.csv|xlsx> --out extension/data/sponsorship-index.json
 
-Pass FY2026 current published files and FY2025 files. The script infers fiscal years from filenames containing FY2026 or FY2025. CSV works with no dependencies. XLSX requires optional package "xlsx".`;
+Pass FY2026 current published files and FY2025 files. The script infers fiscal years from filenames containing FY2026 or FY2025. CSV works with no dependencies. XLSX/XLS requires "exceljs".`;
 }
 
 function normalizeColumn(value) {
@@ -142,10 +109,9 @@ async function* readRows(filePath) {
   }
 
   if (ext === ".xlsx" || ext === ".xls") {
-    // DOL OFLC XLSX worksheets expand to ~500 MB of XML — SheetJS 0.18.x loads
-    // the entire XML into memory at once and silently returns 0 rows on files this
-    // large.  Use exceljs's SAX-based streaming reader instead: it yields rows one
-    // at a time and never needs the full XML in memory.
+    // DOL OFLC XLSX worksheets expand to ~500 MB of XML. Use exceljs's SAX-based
+    // streaming reader instead: it yields rows one at a time and never needs the
+    // full XML in memory.
     let ExcelJS;
     try {
       ExcelJS = (await import("exceljs")).default;
