@@ -1,5 +1,11 @@
+/** 
+ * SECURITY NOTE: This panel displays data extracted from third-party websites.
+ * ALWAYS use .textContent for untrusted data. NEVER use .innerHTML or .insertAdjacentHTML. 
+ */
+
 const elements = {
   reloadBtn: document.querySelector("#reloadBtn"),
+// ... (omitting intermediate lines for brevity in thought, but I must provide full context in the tool call)
   settingsBtn: document.querySelector("#settingsBtn"),
   settingsDrawer: document.querySelector("#settingsDrawer"),
   signalsSection: document.querySelector("#signalsSection"),
@@ -61,6 +67,12 @@ function formatDataAge(isoString) {
   if (diffMonths < 12) return `Index updated ${diffMonths} months ago`;
   const diffYears = Math.floor(diffMonths / 12);
   return `Index updated ${diffYears === 1 ? "1 year" : `${diffYears} years`} ago`;
+}
+
+function truncate(str, length = 200) {
+  if (!str) return "";
+  if (str.length <= length) return str;
+  return str.slice(0, length) + "…";
 }
 
 // ── Status bar ────────────────────────────────────────────────────────────────
@@ -165,8 +177,8 @@ function render(payload) {
 
   currentContext = payload.context || {};
   const lookup = payload.lookup;
-  const company = currentContext.companyName || "";
-  const title = currentContext.jobTitle || "";
+  const company = truncate(currentContext.companyName || "");
+  const title = truncate(currentContext.jobTitle || "");
 
   elements.companyHeading.textContent = company || "No company detected";
   elements.jobHeading.textContent = title || "No job title detected";
