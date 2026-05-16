@@ -21,17 +21,23 @@ const elements = {
   sourceLinks: document.querySelector("#sourceLinks"),
   yearBreakdown: document.querySelector("#yearBreakdown"),
   lcaTotal: document.querySelector("#lcaTotal"),
+  lcaTrend: document.querySelector("#lcaTrend"),
+  lcaRate: document.querySelector("#lcaRate"),
   lcaTitleTotal: document.querySelector("#lcaTitleTotal"),
   lcaCertified: document.querySelector("#lcaCertified"),
   lcaDenied: document.querySelector("#lcaDenied"),
   lcaWithdrawn: document.querySelector("#lcaWithdrawn"),
   permTotal: document.querySelector("#permTotal"),
+  permTrend: document.querySelector("#permTrend"),
+  permRate: document.querySelector("#permRate"),
   permTitleTotal: document.querySelector("#permTitleTotal"),
   permCertified: document.querySelector("#permCertified"),
   permDenied: document.querySelector("#permDenied"),
   permWithdrawn: document.querySelector("#permWithdrawn"),
   wageSummary: document.querySelector("#wageSummary"),
   dataAge: document.querySelector("#dataAge"),
+  suggestionsSection: document.querySelector("#suggestionsSection"),
+  suggestionsList: document.querySelector("#suggestionsList"),
   // Settings drawer children
   customUrlInput: document.querySelector("#customUrlInput"),
   saveUrlBtn: document.querySelector("#saveUrlBtn"),
@@ -96,12 +102,68 @@ function renderStats(stats) {
   elements.permDenied.textContent = formatNumber(stats.perm.denied);
   elements.permWithdrawn.textContent = formatNumber(stats.perm.withdrawn);
 
+  // Certification rate badges
+  function setCertRate(el, certified, denied, withdrawn) {
+    const total = (certified || 0) + (denied || 0) + (withdrawn || 0);
+    if (!total) { el.textContent = ""; el.className = "cert-rate"; return; }
+    const rate = Math.round((certified || 0) / total * 100);
+    el.textContent = `${rate}% approved`;
+    el.className = `cert-rate ${rate >= 90 ? "good" : rate >= 70 ? "ok" : "poor"}`;
+    el.title = `${rate}% certification rate (${formatNumber(certified)} certified of ${formatNumber(total)})`;
+  }
+  setCertRate(elements.lcaRate, stats.lca.certified, stats.lca.denied, stats.lca.withdrawn);
+  setCertRate(elements.permRate, stats.perm.certified, stats.perm.denied, stats.perm.withdrawn);
+
   const min = formatMoney(stats.lca.minWage);
   const max = formatMoney(stats.lca.maxWage);
   const avg = formatMoney(stats.lca.avgWage);
   elements.wageSummary.textContent = min && max
     ? `Range ${min} to ${max}${avg ? `, average ${avg}` : ""}.`
     : "No wage data in the current match.";
+}
+
+function renderTrend(lookup) {
+  const years = [...(lookup.fiscalYears || [])].sort((a, b) => b - a);
+  function clearArrow(el) { el.textContent = ""; el.className = "trend-arrow"; el.removeAttribute("title"); }
+  if (years.length < 2) { clearArrow(elements.lcaTrend); clearArrow(elements.permTrend); return; }
+  const [latest, prev] = years;
+  const latestData = lookup.byFiscalYear[String(latest)] || VisaSponsor.emptyStats();
+  const prevData   = lookup.byFiscalYear[String(prev)]   || VisaSponsor.emptyStats();
+
+  function setArrow(el, curr, prior) {
+    const label = prior ? `${prior > 0 ? formatNumber(prior) : "0"} in FY${prev}` : `no data in FY${prev}`;
+    if (!prior && !curr) { clearArrow(el); return; }
+    if (curr > prior * 1.1) {
+      el.textContent = "↑"; el.className = "trend-arrow up";
+      el.title = `Up from ${label}`;
+    } else if (prior && curr < prior * 0.9) {
+      el.textContent = "↓"; el.className = "trend-arrow down";
+      el.title = `Down from ${label}`;
+    } else {
+      el.textContent = "→"; el.className = "trend-arrow flat";
+      el.title = `Flat vs ${label}`;
+    }
+    el.setAttribute("aria-label", el.title);
+  }
+  setArrow(elements.lcaTrend,  latestData.lca.employerTotal,  prevData.lca.employerTotal);
+  setArrow(elements.permTrend, latestData.perm.employerTotal, prevData.perm.employerTotal);
+}
+
+function renderSuggestions(suggestions) {
+  elements.suggestionsList.replaceChildren();
+  elements.suggestionsSection.hidden = !suggestions?.length;
+  if (!suggestions?.length) return;
+  for (const s of suggestions) {
+    const btn = document.createElement("button");
+    btn.className = "suggestion-chip";
+    btn.type = "button";
+    btn.textContent = s.displayName;
+    btn.addEventListener("click", () => {
+      elements.companyInput.value = s.displayName;
+      elements.form.requestSubmit();
+    });
+    elements.suggestionsList.append(btn);
+  }
 }
 
 function renderYearBreakdown(lookup) {
@@ -202,7 +264,9 @@ function render(payload) {
   }
 
   renderSignals(currentContext.signals || []);
+  renderSuggestions(payload.suggestions || []);
   renderStats(lookup.combined);
+  renderTrend(lookup);
   renderYearBreakdown(lookup);
   renderLinks(lookup.sourceLinks);
   elements.dataAge.textContent = formatDataAge(payload.dataAge);

@@ -109,6 +109,29 @@
     return stats;
   }
 
+  // Return up to `limit` employer names from the loaded shard whose normalized key
+  // is similar to the user's query. Used when findEmployer returns no match.
+  function suggestCompanies(index, companyName, limit = 3) {
+    const normalized = normalization.normalizeEmployer(companyName);
+    if (!normalized || normalized.length < 2) return [];
+
+    const candidates = [];
+    for (const [key, data] of Object.entries(index.employers || {})) {
+      if (key.length < 2) continue;
+      let score = 0;
+      // Substring overlap: user input found inside employer key (e.g. "AMAZON" in "AMAZON WEB SERVICES")
+      if (key.includes(normalized)) score = Math.max(score, 0.8);
+      // Employer key found inside user input (only for keys long enough to be meaningful)
+      else if (normalized.includes(key) && key.length >= 4) score = Math.max(score, 0.65);
+      // Jaccard token similarity as a fallback
+      score = Math.max(score, normalization.titleSimilarity(normalized, key));
+      if (score >= 0.2) candidates.push({ key, displayName: data.displayName || key, score });
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates.slice(0, limit);
+  }
+
   function lookupSponsorship(index, companyName, jobTitle) {
     const metadata = index.metadata || {};
     const fiscalYears = metadata.fiscalYears || [2026, 2025];
@@ -142,6 +165,7 @@
   root.VisaSponsor = {
     ...(root.VisaSponsor || {}),
     emptyStats,
-    lookupSponsorship
+    lookupSponsorship,
+    suggestCompanies
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

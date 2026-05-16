@@ -32,6 +32,20 @@
       ],
       "run_at": "document_idle",
       "all_frames": true
+    },
+    {
+      "matches": [
+        "https://www.linkedin.com/jobs/search/*",
+        "https://www.linkedin.com/jobs/collections/*",
+        "https://www.linkedin.com/jobs/recommended/*",
+        "https://boards.greenhouse.io/*"
+      ],
+      "js": [
+        "src/shared/normalization.js",
+        "src/content/badge-injector.js"
+      ],
+      "css": ["src/content/badge.css"],
+      "run_at": "document_idle"
     }
   ],
   "side_panel": {

@@ -86,12 +86,16 @@ async function refreshPanel(context) {
   // When no company is known, return an empty result without fetching any shard
   if (!context.companyName) {
     const empty = VisaSponsor.lookupSponsorship({ metadata: {}, employers: {}, aliases: {} }, "", "");
-    return { lookup: empty, generatedAt: null };
+    return { lookup: empty, generatedAt: null, suggestions: [] };
   }
   const letter = shardLetter(context.companyName);
   const shard = await loadShard(letter);
   const lookup = VisaSponsor.lookupSponsorship(shard, context.companyName, context.jobTitle);
-  return { lookup, generatedAt: shard.metadata?.generatedAt || null };
+  // When there is no employer match, surface the closest names from the loaded shard
+  const suggestions = lookup.confidence === "none"
+    ? VisaSponsor.suggestCompanies(shard, context.companyName)
+    : [];
+  return { lookup, generatedAt: shard.metadata?.generatedAt || null, suggestions };
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
@@ -106,7 +110,35 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // ── Embedded ATS detection (gh_jid / ashby_jid URL params) ───────────────────
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // When the page finishes loading, retry signals extraction for embedded ATS tabs
+  // whose signals were still empty (script was injected too early at URL-change time).
+  if (changeInfo.status === "complete" && !changeInfo.url) {
+    const existing = latestContextByTab.get(tabId);
+    if (existing && (!existing.signals || existing.signals.length === 0)) {
+      let hasEmbeddedAts = false;
+      try {
+        const u = new URL(tab?.url || "");
+        hasEmbeddedAts = u.searchParams.has("gh_jid") || u.searchParams.has("ashby_jid");
+      } catch {}
+      if (hasEmbeddedAts) {
+        try {
+          await chrome.scripting.executeScript({ target: { tabId }, files: ["src/shared/normalization.js", "src/content/signals-extractor.js"] });
+          const [sigResult] = await chrome.scripting.executeScript({
+            target: { tabId },
+            func: () => (typeof VisaSponsor !== "undefined" && VisaSponsor.extractSignals) ? VisaSponsor.extractSignals() : []
+          });
+          const signals = Array.isArray(sigResult?.result) ? sigResult.result : [];
+          if (signals.length > 0) {
+            latestContextByTab.set(tabId, { ...existing, signals });
+            chrome.runtime.sendMessage({ type: "CONTEXT_UPDATED", tabId }).catch(() => {});
+          }
+        } catch { /* page may block injection */ }
+      }
+    }
+    return;
+  }
+
   if (!changeInfo.url) return;
   let url;
   try { url = new URL(changeInfo.url); } catch { return; }
@@ -154,7 +186,20 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
         } catch { /* network failure — leave title empty */ }
       }
 
-      const context = { companyName: companyName || "", jobTitle, source: "greenhouse", url: changeInfo.url, signals: [] };
+      // The manifest content_scripts only run on greenhouse.io domains, not on
+      // third-party sites embedding a Greenhouse board. Inject and run the signals
+      // extractor here so clearance/sponsorship signals are captured on those pages.
+      let signals = [];
+      try {
+        await chrome.scripting.executeScript({ target: { tabId }, files: ["src/shared/normalization.js", "src/content/signals-extractor.js"] });
+        const [sigResult] = await chrome.scripting.executeScript({
+          target: { tabId },
+          func: () => (typeof VisaSponsor !== "undefined" && VisaSponsor.extractSignals) ? VisaSponsor.extractSignals() : []
+        });
+        signals = Array.isArray(sigResult?.result) ? sigResult.result : [];
+      } catch { /* page may block script injection — signals stay empty */ }
+
+      const context = { companyName: companyName || "", jobTitle, source: "greenhouse", url: changeInfo.url, signals };
       latestContextByTab.set(tabId, context);
       chrome.runtime.sendMessage({ type: "CONTEXT_UPDATED", tabId }).catch(() => {});
     }
@@ -171,7 +216,17 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
         })
       });
 
-      const context = { companyName: probe?.result?.companyName || "", jobTitle: "", source: "ashby", url: changeInfo.url, signals: [] };
+      let signals = [];
+      try {
+        await chrome.scripting.executeScript({ target: { tabId }, files: ["src/shared/normalization.js", "src/content/signals-extractor.js"] });
+        const [sigResult] = await chrome.scripting.executeScript({
+          target: { tabId },
+          func: () => (typeof VisaSponsor !== "undefined" && VisaSponsor.extractSignals) ? VisaSponsor.extractSignals() : []
+        });
+        signals = Array.isArray(sigResult?.result) ? sigResult.result : [];
+      } catch { /* page may block script injection — signals stay empty */ }
+
+      const context = { companyName: probe?.result?.companyName || "", jobTitle: "", source: "ashby", url: changeInfo.url, signals };
       latestContextByTab.set(tabId, context);
       chrome.runtime.sendMessage({ type: "CONTEXT_UPDATED", tabId }).catch(() => {});
     }
@@ -213,8 +268,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       companyName: "", jobTitle: "", source: "unsupported", url: ""
     };
     refreshPanel(context)
-      .then(({ lookup, generatedAt }) =>
-        sendResponse({ ok: true, context, lookup, dataAge: generatedAt })
+      .then(({ lookup, generatedAt, suggestions }) =>
+        sendResponse({ ok: true, context, lookup, dataAge: generatedAt, suggestions })
       )
       .catch((error) => sendResponse({ ok: false, error: error.message, context }));
     return true;
@@ -229,10 +284,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     };
     if (tabId) latestContextByTab.set(tabId, context);
     refreshPanel(context)
-      .then(({ lookup, generatedAt }) =>
-        sendResponse({ ok: true, context, lookup, dataAge: generatedAt })
+      .then(({ lookup, generatedAt, suggestions }) =>
+        sendResponse({ ok: true, context, lookup, dataAge: generatedAt, suggestions })
       )
       .catch((error) => sendResponse({ ok: false, error: error.message, context }));
+    return true;
+  }
+
+  // ── Badge lookup (job list pages) ──────────────────────────────────────────
+  if (message.type === "GET_BADGES") {
+    const companies = Array.isArray(message.companies) ? message.companies : [];
+    const results = {};
+    // Group by shard letter so each shard is loaded at most once
+    const byLetter = new Map();
+    for (const name of companies) {
+      if (!name) continue;
+      const letter = shardLetter(name);
+      if (!byLetter.has(letter)) byLetter.set(letter, []);
+      byLetter.get(letter).push(name);
+    }
+    Promise.all([...byLetter.entries()].map(async ([letter, names]) => {
+      try {
+        const shard = await loadShard(letter);
+        for (const name of names) {
+          const lookup = VisaSponsor.lookupSponsorship(shard, name, "");
+          results[name] = { lca: lookup.combined.lca.employerTotal, confidence: lookup.confidence };
+        }
+      } catch {
+        for (const name of names) results[name] = { lca: 0, confidence: "none" };
+      }
+    })).then(() => sendResponse({ ok: true, results }));
     return true;
   }
 
