@@ -36,6 +36,7 @@ const elements = {
   permWithdrawn: document.querySelector("#permWithdrawn"),
   wageSummary: document.querySelector("#wageSummary"),
   dataAge: document.querySelector("#dataAge"),
+  sponsorScore: document.querySelector("#sponsorScore"),
   suggestionsSection: document.querySelector("#suggestionsSection"),
   suggestionsList: document.querySelector("#suggestionsList"),
   // Settings drawer children
@@ -227,6 +228,17 @@ function renderSignals(signals) {
   }
 }
 
+function renderSponsorScore(lookup) {
+  const el = elements.sponsorScore;
+  const result = VisaSponsor.computeSponsorScore(lookup);
+  if (!result) { el.hidden = true; el.textContent = ""; el.className = ""; return; }
+  el.hidden = false;
+  el.textContent = `${result.grade}`;
+  el.className = `sponsor-score grade-${result.grade}`;
+  el.setAttribute("aria-label", `Sponsorship score: ${result.grade} (${result.score}/100)`);
+  el.title = `H-1B Friendliness: ${result.grade} (${result.score}/100)\n${result.certRate}% approval rate · ${formatNumber(result.volume)} LCA filings`;
+}
+
 function renderLinks(links) {
   elements.sourceLinks.replaceChildren();
   for (const link of links || []) {
@@ -277,6 +289,7 @@ function render(payload) {
   renderSuggestions(payload.suggestions || []);
   renderStats(lookup.combined);
   renderTrend(lookup);
+  renderSponsorScore(lookup);
   renderYearBreakdown(lookup);
   renderLinks(lookup.sourceLinks);
   elements.dataAge.textContent = formatDataAge(payload.dataAge);

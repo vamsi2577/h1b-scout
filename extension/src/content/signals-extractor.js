@@ -136,6 +136,23 @@
         /\bE[-‑]Verify\b/i,
         /\beverify\b/i
       ]
+    },
+
+    // ── No C2C / W2 only ─────────────────────────────────────────────────────
+    // Relevant for H-1B holders placed by staffing firms: "no C2C" means the
+    // client will only hire direct W2 employees, excluding corp-to-corp contractors.
+    {
+      type: "no_c2c",
+      label: "No C2C / W2 only",
+      severity: "medium",
+      patterns: [
+        /\bno\s+c2c\b/i,
+        /\bno\s+corp[\s-]?to[\s-]?corp\b/i,
+        /\bcorp[\s-]?to[\s-]?corp\s+(not\s+)?(accepted|allowed|considered|eligible|permitted)\b/i,
+        /\bw[-]?2\s+only\b/i,
+        /\bmust\s+be\s+(on\s+)?w[-]?2\b/i,
+        /\bdirect\s+(w[-]?2\s+)?hire\s+only\b/i
+      ]
     }
   ];
 
