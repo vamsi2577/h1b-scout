@@ -27,6 +27,7 @@
     for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
       try {
         const parsed = JSON.parse(script.textContent || "{}");
+        if (typeof parsed !== "object" || parsed === null) continue;
         const nodes = Array.isArray(parsed) ? parsed : [parsed];
         const job = nodes.find((node) => node && (node["@type"] === "JobPosting" || node.title));
         if (job) {
@@ -295,8 +296,21 @@
   // isn't ready within the first 3 seconds.
   if (source === "linkedin") setTimeout(sendContext, 6000);
 
-  observer = new MutationObserver(() => sendContext());
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  // On LinkedIn, debounce the observer at 300 ms and narrow the root to
+  // document.body to skip <head> style/script mutations from animations.
+  // On all other platforms the observer disconnects after the first successful
+  // send, so the broader root and no debounce are fine.
+  let observerTimer;
+  const observeRoot = (source === "linkedin" && document.body) ? document.body : document.documentElement;
+  observer = new MutationObserver(() => {
+    if (source === "linkedin") {
+      clearTimeout(observerTimer);
+      observerTimer = setTimeout(sendContext, 300);
+    } else {
+      sendContext();
+    }
+  });
+  observer.observe(observeRoot, { childList: true, subtree: true });
 
   // LinkedIn changes the URL (currentJobId) via history.pushState when the user
   // clicks a different job in the list. Re-run sendContext on each navigation so
