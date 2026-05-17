@@ -24,6 +24,15 @@ const panelEnabledTabs = new Set();
 // custom URL changes.
 const resolvedTagCache = new Map();
 
+// Returns the full list of per-letter chrome.storage.local keys used for version
+// markers (tag_A…tag_Z, tag_0, cachedAt_A…cachedAt_Z, cachedAt_0).
+// Used by SAVE_SETTINGS and full CLEAR_SHARD_CACHE to bulk-remove without
+// a read-modify-write cycle.
+function allVersionMarkerKeys() {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0".split("");
+  return letters.flatMap(l => [`tag_${l}`, `cachedAt_${l}`]);
+}
+
 // ── Shard helpers ─────────────────────────────────────────────────────────────
 function shardLetter(companyName) {
   const normalized = VisaSponsor.normalizeEmployer(companyName || "");
@@ -81,11 +90,22 @@ async function loadShard(letter) {
     const isGitHub = githubApiUrlFor(base) !== null;
 
     if (isGitHub) {
-      // 2a. Version-aware path: only re-fetch when the release tag changes
+      // 2a. Version-aware path: only re-fetch when the release tag changes.
+      // Each letter gets its own flat storage key (e.g. "tag_A") so concurrent
+      // shard loads never clobber each other through a shared object.
       const latestTag = await resolveLatestTag(base);
-      const { cachedTag = {} } = await chrome.storage.local.get("cachedTag");
+      const tagKey = `tag_${letter}`;
+      const { [tagKey]: storedTag } = await chrome.storage.local.get(tagKey);
 
-      if (latestTag && cachedTag[letter] === latestTag) {
+      if (latestTag === null) {
+        // GitHub API unreachable (rate limit / offline) — serve from any available
+        // cache rather than forcing a redundant network fetch.
+        const cached = await cache.match(url);
+        if (cached) return cached.json();
+        const mirror = await LocalShardDB.get(MIRROR_PREFIX + letter).catch(() => null);
+        if (mirror) return mirror;
+        // No cache at all — fall through to fetch attempt below
+      } else if (storedTag === latestTag) {
         // Tag matches — cached shard is still current
         const cached = await cache.match(url);
         if (cached) return cached.json();
@@ -95,7 +115,7 @@ async function loadShard(letter) {
         // Both evicted — fall through to re-fetch (data unchanged, just restoring caches)
       }
 
-      // Tag mismatch, unknown tag, or caches empty — fetch fresh shard
+      // Tag mismatch, API failed with no cache, or caches empty — fetch fresh shard
       try {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -106,10 +126,9 @@ async function loadShard(letter) {
           { headers: { "Content-Type": "application/json" } }));
         // Mirror to IndexedDB — survives Cache API eviction (fire-and-forget)
         LocalShardDB.set(MIRROR_PREFIX + letter, data).catch(() => {});
-        // Record tag so the next load can skip the fetch
+        // Record tag with an atomic per-letter write — no read-modify-write race
         if (latestTag) {
-          const { cachedTag: curr = {} } = await chrome.storage.local.get("cachedTag");
-          await chrome.storage.local.set({ cachedTag: { ...curr, [letter]: latestTag } });
+          await chrome.storage.local.set({ [tagKey]: latestTag });
         }
         return data;
       } catch (fetchError) {
@@ -128,9 +147,11 @@ async function loadShard(letter) {
         );
       }
     } else {
-      // 2b. Non-GitHub custom URL — 30-day TTL fallback
-      const { shardCachedAt = {} } = await chrome.storage.local.get("shardCachedAt");
-      const isFresh = Date.now() - (shardCachedAt[letter] || 0) < FALLBACK_STALE_MS;
+      // 2b. Non-GitHub custom URL — 30-day TTL fallback.
+      // Per-letter flat key avoids the read-modify-write race on a shared object.
+      const cachedAtKey = `cachedAt_${letter}`;
+      const { [cachedAtKey]: cachedAt = 0 } = await chrome.storage.local.get(cachedAtKey);
+      const isFresh = Date.now() - cachedAt < FALLBACK_STALE_MS;
 
       if (isFresh) {
         const cached = await cache.match(url);
@@ -149,9 +170,8 @@ async function loadShard(letter) {
         await cache.put(url, new Response(JSON.stringify(data),
           { headers: { "Content-Type": "application/json" } }));
         LocalShardDB.set(MIRROR_PREFIX + letter, data).catch(() => {});
-
-        const { shardCachedAt: curr = {} } = await chrome.storage.local.get("shardCachedAt");
-        await chrome.storage.local.set({ shardCachedAt: { ...curr, [letter]: Date.now() } });
+        // Atomic per-letter write — no shared object to clobber
+        await chrome.storage.local.set({ [cachedAtKey]: Date.now() });
         return data;
       } catch (fetchError) {
         const stale = await cache.match(url);
@@ -437,8 +457,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.set({ customBaseUrl: url }).then(() => {
       shardPromises.clear();
       resolvedTagCache.clear(); // reset in-memory tag cache — new URL may point elsewhere
-      // Clear persisted version markers so the next load re-checks the release
-      chrome.storage.local.remove(["cachedTag", "shardCachedAt"]).catch(() => {});
+      // Clear all per-letter version markers (tag_A…tag_Z, cachedAt_A…cachedAt_0)
+      chrome.storage.local.remove(allVersionMarkerKeys()).catch(() => {});
       sendResponse({ ok: true });
     }).catch(() => sendResponse({ ok: false }));
     return true; // async
@@ -452,7 +472,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // Full clear — wipe everything including IndexedDB mirrors
       shardPromises.clear();
       resolvedTagCache.clear();
-      chrome.storage.local.remove(["cachedTag", "shardCachedAt"]).catch(() => {});
+      chrome.storage.local.remove(allVersionMarkerKeys()).catch(() => {});
       LocalShardDB.keys()
         .then(keys => Promise.all(
           keys
@@ -461,22 +481,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         ))
         .catch(() => {});
     } else {
-      // Selective clear — only the requested letters
+      // Selective clear — only the requested letters (atomic per-letter removes)
       for (const letter of letters) {
         shardPromises.delete(letter);
         LocalShardDB.remove(MIRROR_PREFIX + letter).catch(() => {});
       }
-      // Remove the cached version markers for just these letters
-      Promise.all([
-        chrome.storage.local.get("cachedTag"),
-        chrome.storage.local.get("shardCachedAt")
-      ]).then(([{ cachedTag = {} }, { shardCachedAt = {} }]) => {
-        for (const letter of letters) {
-          delete cachedTag[letter];
-          delete shardCachedAt[letter];
-        }
-        return chrome.storage.local.set({ cachedTag, shardCachedAt });
-      }).catch(() => {});
+      const keysToRemove = letters.flatMap(l => [`tag_${l}`, `cachedAt_${l}`]);
+      chrome.storage.local.remove(keysToRemove).catch(() => {});
     }
     sendResponse({ ok: true });
     return false;
