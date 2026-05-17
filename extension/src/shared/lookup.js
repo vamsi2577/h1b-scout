@@ -132,6 +132,19 @@
     return candidates.slice(0, limit);
   }
 
+  function calculateTrend(curr, prior) {
+    if (!prior && !curr) return "flat";
+    if (!prior && curr > 0) return "up";
+    if (curr > prior * 1.1) return "up";
+    if (curr < prior * 0.9) return "down";
+    return "flat";
+  }
+
+  function calculateCertRate(certified, denied, withdrawn) {
+    const total = (certified || 0) + (denied || 0) + (withdrawn || 0);
+    return total ? Math.round((certified || 0) / total * 100) : 0;
+  }
+
   function lookupSponsorship(index, companyName, jobTitle) {
     const metadata = index.metadata || {};
     const fiscalYears = metadata.fiscalYears || [2026, 2025];
@@ -166,6 +179,8 @@
     ...(root.VisaSponsor || {}),
     emptyStats,
     lookupSponsorship,
-    suggestCompanies
+    suggestCompanies,
+    calculateTrend,
+    calculateCertRate
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

@@ -103,10 +103,12 @@ function renderStats(stats) {
   elements.permWithdrawn.textContent = formatNumber(stats.perm.withdrawn);
 
   // Certification rate badges
+  // Thresholds: >= 90% (Good/Green), >= 70% (OK/Yellow), < 70% (Poor/Red).
+  // These represent common benchmarks for sponsorship reliability.
   function setCertRate(el, certified, denied, withdrawn) {
     const total = (certified || 0) + (denied || 0) + (withdrawn || 0);
     if (!total) { el.textContent = ""; el.className = "cert-rate"; return; }
-    const rate = Math.round((certified || 0) / total * 100);
+    const rate = VisaSponsor.calculateCertRate(certified, denied, withdrawn);
     el.textContent = `${rate}% approved`;
     el.className = `cert-rate ${rate >= 90 ? "good" : rate >= 70 ? "ok" : "poor"}`;
     el.title = `${rate}% certification rate (${formatNumber(certified)} certified of ${formatNumber(total)})`;
@@ -133,10 +135,12 @@ function renderTrend(lookup) {
   function setArrow(el, curr, prior) {
     const label = prior ? `${prior > 0 ? formatNumber(prior) : "0"} in FY${prev}` : `no data in FY${prev}`;
     if (!prior && !curr) { clearArrow(el); return; }
-    if (curr > prior * 1.1) {
+    
+    const trend = VisaSponsor.calculateTrend(curr, prior);
+    if (trend === "up") {
       el.textContent = "↑"; el.className = "trend-arrow up";
       el.title = `Up from ${label}`;
-    } else if (prior && curr < prior * 0.9) {
+    } else if (trend === "down") {
       el.textContent = "↓"; el.className = "trend-arrow down";
       el.title = `Down from ${label}`;
     } else {

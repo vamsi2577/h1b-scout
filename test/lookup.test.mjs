@@ -116,3 +116,33 @@ test("partialYear is passed through from metadata", () => {
   const result = VisaSponsor.lookupSponsorship(index, "Acme Inc.", "Software Engineer");
   assert.equal(result.partialYear, 2026);
 });
+
+test("suggestCompanies returns similar names from the shard", () => {
+  const shard = {
+    employers: {
+      "AMAZON WEB SERVICES": { displayName: "Amazon Web Services" },
+      "AMAZON CORP": { displayName: "Amazon Corp" },
+      "GOOGLE": { displayName: "Google" },
+      "FACEBOOK": { displayName: "Facebook" }
+    }
+  };
+  const suggestions = VisaSponsor.suggestCompanies(shard, "Amazon");
+  assert.equal(suggestions.length, 2);
+  assert.equal(suggestions[0].displayName, "Amazon Web Services");
+  assert.equal(suggestions[1].displayName, "Amazon Corp");
+});
+
+test("calculateTrend identifies up, down, and flat trends", () => {
+  assert.equal(VisaSponsor.calculateTrend(111, 100), "up");
+  assert.equal(VisaSponsor.calculateTrend(89, 100), "down");
+  assert.equal(VisaSponsor.calculateTrend(105, 100), "flat");
+  assert.equal(VisaSponsor.calculateTrend(100, 100), "flat");
+  assert.equal(VisaSponsor.calculateTrend(10, 0), "up");
+  assert.equal(VisaSponsor.calculateTrend(0, 0), "flat");
+});
+
+test("calculateCertRate returns rounded percentage", () => {
+  assert.equal(VisaSponsor.calculateCertRate(9, 1, 0), 90);
+  assert.equal(VisaSponsor.calculateCertRate(1, 1, 1), 33);
+  assert.equal(VisaSponsor.calculateCertRate(0, 0, 0), 0);
+});

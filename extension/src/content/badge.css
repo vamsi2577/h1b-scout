@@ -12,6 +12,14 @@
   cursor: default;
 }
 
+.h1b-scout-badge--top-right {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  margin-left: 0;
+  z-index: 10;
+}
+
 .h1b-scout-badge--high {
   background: #d1fae5;
   border: 1px solid #6ee7b7;
