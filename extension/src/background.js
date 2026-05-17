@@ -392,6 +392,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       signals: Array.isArray(message.signals) ? message.signals : []
     };
     latestContextByTab.set(tabId, context);
+    // Persist to session storage so the context survives service-worker restarts
+    // within the same browser session (e.g. panel opened after SW idle-timeout).
+    chrome.storage.session.set({ [`tab_${tabId}`]: context }).catch(() => {});
     logExtractionFailure(context);
     if (!panelEnabledTabs.has(tabId)) {
       panelEnabledTabs.add(tabId);
@@ -403,14 +406,70 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "GET_PANEL_DATA") {
-    const context = latestContextByTab.get(tabId) || {
-      companyName: "", jobTitle: "", source: "unsupported", url: ""
+    // Helper: return in-memory context, falling back to session storage when the
+    // service worker has restarted and latestContextByTab is empty.
+    const getContext = async () => {
+      let ctx = latestContextByTab.get(tabId);
+      if (!ctx && tabId) {
+        const stored = await chrome.storage.session.get(`tab_${tabId}`);
+        ctx = stored[`tab_${tabId}`] || null;
+        if (ctx) latestContextByTab.set(tabId, ctx); // repopulate in-memory cache
+      }
+      return ctx || { companyName: "", jobTitle: "", source: "unsupported", url: "" };
     };
-    refreshPanel(context)
-      .then(({ lookup, generatedAt, suggestions }) =>
-        sendResponse({ ok: true, context, lookup, dataAge: generatedAt, suggestions })
-      )
-      .catch((error) => sendResponse({ ok: false, error: error.message, context }));
+    getContext()
+      .then(async (context) => {
+        try {
+          const { lookup, generatedAt, suggestions } = await refreshPanel(context);
+          sendResponse({ ok: true, context, lookup, dataAge: generatedAt, suggestions });
+        } catch (error) {
+          // Include context so the panel can still display company/title even
+          // when shard loading fails (e.g. offline, bad custom URL).
+          sendResponse({ ok: false, error: error.message, context });
+        }
+      })
+      .catch((error) => sendResponse({
+        ok: false,
+        error: error.message,
+        context: { companyName: "", jobTitle: "", source: "unsupported", url: "" }
+      }));
+    return true;
+  }
+
+  // ── Re-extraction ──────────────────────────────────────────────────────────
+  // Panel reload button sends this when it wants a fresh extraction from the live
+  // page (e.g. after SW restart wiped latestContextByTab, or on first panel open
+  // before the content script fired).
+  if (message.type === "REEXTRACT") {
+    if (!tabId) { sendResponse({ ok: false }); return false; }
+
+    // First try calling the existing extraction function to avoid redundant re-injection.
+    chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        if (typeof window._h1bScoutReextract === "function") {
+          window._h1bScoutReextract();
+          return true;
+        }
+        return false;
+      }
+    }).then(([result]) => {
+      if (result?.result) {
+        sendResponse({ ok: true });
+        return;
+      }
+
+      // Fallback: full injection if the script isn't there (e.g. first run or after navigation).
+      chrome.scripting.executeScript({
+        target: { tabId, allFrames: false },
+        files: [
+          "src/shared/normalization.js",
+          "src/content/signals-extractor.js",
+          "src/content/job-extractor.js"
+        ]
+      }).then(() => sendResponse({ ok: true }))
+        .catch((e) => sendResponse({ ok: false, error: e.message }));
+    }).catch((e) => sendResponse({ ok: false, error: e.message }));
     return true;
   }
 

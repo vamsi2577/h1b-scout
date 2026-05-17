@@ -1,4 +1,5 @@
 (function attachSignalsExtractor(root) {
+  if (root.VisaSponsor && root.VisaSponsor.extractSignals) return;
   // Ordered list of selectors to find the job description text.
   // First match wins; falls back to document.body.
   const DESCRIPTION_SELECTORS = [

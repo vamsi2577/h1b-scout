@@ -46,6 +46,15 @@ function workdayFallback(url) {
   return { companyName, jobTitle };
 }
 
+// Mirrors greenhouseCompanyFromPath() from job-extractor.js
+function greenhouseCompanyFromPath(pathname) {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length >= 2 && parts[1] === "jobs") {
+    return titleCaseSlug(parts[0]);
+  }
+  return "";
+}
+
 test("parses Greenhouse application heading into title and company", () => {
   assert.deepEqual(parseTitleAtCompany("Job Application for Software Engineer, Next.js at Vercel"), {
     jobTitle: "Software Engineer, Next.js",
@@ -79,6 +88,27 @@ test("removes numeric-only Workday requisition suffixes from fallback title", ()
     workdayFallback("https://philips.wd3.myworkdayjobs.com/en-US/jobs-and-careers/job/Software-Engineer---Systems-Programming---Application-Development-C--_576842").jobTitle,
     "Software Engineer Systems Programming Application Development C"
   );
+});
+
+// ── greenhouseCompanyFromPath ────────────────────────────────────────────────
+
+test("extracts company slug from job-boards.greenhouse.io path", () => {
+  assert.equal(
+    greenhouseCompanyFromPath("/kepora/jobs/4250591009"),
+    "Kepora"
+  );
+});
+
+test("extracts company slug from boards.greenhouse.io path (legacy format)", () => {
+  assert.equal(
+    greenhouseCompanyFromPath("/vercel/jobs/7890123"),
+    "Vercel"
+  );
+});
+
+test("returns empty string when path does not match /company/jobs/id pattern", () => {
+  assert.equal(greenhouseCompanyFromPath("/jobs"), "");
+  assert.equal(greenhouseCompanyFromPath("/"), "");
 });
 
 // ── cleanWorkdayCompany ──────────────────────────────────────────────────────

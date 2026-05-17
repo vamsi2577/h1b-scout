@@ -110,6 +110,20 @@
     return cleaned;
   }
 
+  // Extract the company slug from the Greenhouse board URL path.
+  // Both board formats use /company-slug/jobs/id:
+  //   boards.greenhouse.io/kepora/jobs/4250591009
+  //   job-boards.greenhouse.io/kepora/jobs/4250591009
+  // Used as a last-resort fallback when the DOM carries no company name.
+  function greenhouseCompanyFromPath(pathname = location.pathname) {
+    const parts = pathname.split("/").filter(Boolean);
+    // Greenhouse boards use /company-slug/jobs/job-id
+    if (parts.length >= 3 && parts[1] === "jobs") {
+      return titleCaseSlug(parts[0]);
+    }
+    return "";
+  }
+
   function greenhouseContext() {
     const jsonLd = fromJsonLd();
     const ogTitle = meta("og:title");
@@ -127,6 +141,9 @@
         text(".company-name") ||
         meta("og:site_name") ||
         document.title.split("|").at(-1)?.trim() ||
+        // Last resort: extract company slug from the URL path itself
+        // e.g. job-boards.greenhouse.io/kepora/jobs/... → "Kepora"
+        greenhouseCompanyFromPath() ||
         "",
       jobTitle:
         jsonLd.jobTitle ||
@@ -298,29 +315,38 @@
   // isn't ready within the first 3 seconds.
   if (source === "linkedin") setTimeout(sendContext, 6000);
 
-  // On LinkedIn, debounce the observer at 300 ms and narrow the root to
-  // document.body to skip <head> style/script mutations from animations.
-  // On all other platforms the observer disconnects after the first successful
-  // send, so the broader root and no debounce are fine.
-  const observeRoot = (source === "linkedin" && document.body) ? document.body : document.documentElement;
-  observer = new MutationObserver(() => {
-    if (source === "linkedin") {
-      clearTimeout(observerTimer);
-      observerTimer = setTimeout(sendContext, 300);
-    } else {
-      sendContext();
-    }
-  });
-  observer.observe(observeRoot, { childList: true, subtree: true });
+  // Guard against re-injection from REEXTRACT: set up observers and patch
+  // history.pushState only once per page load. The sendContext() calls above
+  // always run unconditionally so the SW captures fresh context after a
+  // service-worker restart even when the script was already injected.
+  if (!window._h1bScoutAttached) {
+    window._h1bScoutAttached = true;
+    window._h1bScoutReextract = sendContext;
 
-  // LinkedIn changes the URL (currentJobId) via history.pushState when the user
-  // clicks a different job in the list. Re-run sendContext on each navigation so
-  // the panel updates without a page reload.
-  if (source === "linkedin") {
-    window.addEventListener("popstate", sendContext);
-    const origPush = history.pushState.bind(history);
-    history.pushState = (...args) => { origPush(...args); sendContext(); };
-    const origReplace = history.replaceState.bind(history);
-    history.replaceState = (...args) => { origReplace(...args); sendContext(); };
+    // On LinkedIn, debounce the observer at 300 ms and narrow the root to
+    // document.body to skip <head> style/script mutations from animations.
+    // On all other platforms the observer disconnects after the first successful
+    // send, so the broader root and no debounce are fine.
+    const observeRoot = (source === "linkedin" && document.body) ? document.body : document.documentElement;
+    observer = new MutationObserver(() => {
+      if (source === "linkedin") {
+        clearTimeout(observerTimer);
+        observerTimer = setTimeout(sendContext, 300);
+      } else {
+        sendContext();
+      }
+    });
+    observer.observe(observeRoot, { childList: true, subtree: true });
+
+    // LinkedIn changes the URL (currentJobId) via history.pushState when the user
+    // clicks a different job in the list. Re-run sendContext on each navigation so
+    // the panel updates without a page reload.
+    if (source === "linkedin") {
+      window.addEventListener("popstate", sendContext);
+      const origPush = history.pushState.bind(history);
+      history.pushState = (...args) => { origPush(...args); sendContext(); };
+      const origReplace = history.replaceState.bind(history);
+      history.replaceState = (...args) => { origReplace(...args); sendContext(); };
+    }
   }
 })();
