@@ -306,14 +306,37 @@ elements.form.addEventListener("submit", async (event) => {
 });
 
 // ── Reload button ─────────────────────────────────────────────────────────────
-elements.reloadBtn.addEventListener("click", () => {
+// Re-injects the content script so the page is re-scraped, then waits for
+// CONTEXT_UPDATED (fast path) or falls back to GET_PANEL_DATA after 2 s
+// (for unsupported pages or when scripting is blocked).
+elements.reloadBtn.addEventListener("click", async () => {
   elements.reloadBtn.classList.add("spinning");
-  loadPanelData().finally(() => elements.reloadBtn.classList.remove("spinning"));
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+  // Ask the service worker to re-run the content script on the current tab.
+  // If it succeeds, the content script sends JOB_CONTEXT_FOUND → SW fires
+  // CONTEXT_UPDATED → the listener below handles rendering and stops the spinner.
+  chrome.runtime.sendMessage({ type: "REEXTRACT", tabId: tab?.id });
+
+  // Fallback: if CONTEXT_UPDATED doesn't arrive within 2 s (unsupported page,
+  // scripting blocked, already-idle page with no DOM changes), pull whatever
+  // context the SW currently knows and render it.
+  const fallbackTimer = setTimeout(() => {
+    loadPanelData().finally(() => elements.reloadBtn.classList.remove("spinning"));
+  }, 2000);
+
+  // Store the timer id so the CONTEXT_UPDATED listener can cancel it early.
+  elements.reloadBtn._fallbackTimer = fallbackTimer;
 });
 
 // ── Background messages ───────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message) => {
-  if (message.type === "CONTEXT_UPDATED") loadPanelData();
+  if (message.type === "CONTEXT_UPDATED") {
+    // Cancel the reload fallback timer if the content script responded in time.
+    clearTimeout(elements.reloadBtn._fallbackTimer);
+    elements.reloadBtn.classList.remove("spinning");
+    loadPanelData();
+  }
 });
 
 // ── Settings drawer ───────────────────────────────────────────────────────────
