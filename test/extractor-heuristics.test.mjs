@@ -245,3 +245,38 @@ test("fromJsonLd skips malformed JSON and continues to next script", () => {
 test("fromJsonLd returns empty object when no scripts match", () => {
   assert.deepStrictEqual(fromJsonLdWithScripts([{ textContent: '{"@type":"WebPage"}' }]), {});
 });
+
+// ── HigherEdJobs ─────────────────────────────────────────────────────────────
+
+function higheredContext(doc) {
+  const text = (selector) => doc.querySelector(selector)?.textContent?.trim() || "";
+  return {
+    companyName: text(".institution") || text(".job-info .institution") || "",
+    jobTitle: text("#jobTitle") || ""
+  };
+}
+
+test("higheredContext extracts title and company using IDs and classes", () => {
+  const mockDoc = {
+    querySelector: (selector) => {
+      if (selector === "#jobTitle") return { textContent: "Scientific Software Engineer" };
+      if (selector === ".institution") return { textContent: "Johns Hopkins University" };
+      return null;
+    }
+  };
+  const result = higheredContext(mockDoc);
+  assert.equal(result.jobTitle, "Scientific Software Engineer");
+  assert.equal(result.companyName, "Johns Hopkins University");
+});
+
+test("higheredContext falls back to .job-info .institution", () => {
+  const mockDoc = {
+    querySelector: (selector) => {
+      if (selector === "#jobTitle") return { textContent: "IT Support" };
+      if (selector === ".job-info .institution") return { textContent: "Nova Southeastern University" };
+      return null;
+    }
+  };
+  const result = higheredContext(mockDoc);
+  assert.equal(result.companyName, "Nova Southeastern University");
+});
