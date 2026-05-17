@@ -97,10 +97,14 @@ main {
 
 .header {
   align-items: flex-start;
+  background: var(--bg);
   border-bottom: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
   padding-bottom: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .header-actions {
@@ -592,28 +596,7 @@ dd {
 .grade-badge.grade-D { background: #ffedd5; color: #7c2d12; }
 .grade-badge.grade-F { background: #fee2e2; color: #7f1d1d; }
 
-/* ── Lookup display row ─────────────────────────────────────────────────────── */
-.lookup-row {
-  align-items: center;
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-}
-
-.lookup-display {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.lookup-text {
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+/* ── Edit button (in header-actions) ────────────────────────────────────────── */
 .btn-edit {
   background: transparent;
   border: 1px solid var(--line);
