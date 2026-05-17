@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   --bg: #f7f8fa;
   --panel: #ffffff;
   --text: #17202a;
@@ -9,7 +9,71 @@
   --accent-dark: #0d5148;
   --warn: #8a5a00;
   --focus-ring: #6366f1;
+  /* light-only tints used in multiple rules */
+  --tint-green: #e8f1ef;
+  --tint-green-border: #a8cfc9;
+  --tint-warn-bg: #fff7df;
+  --tint-warn-border: #ead28c;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111318;
+    --panel: #1c1f26;
+    --text: #e2e6ea;
+    --muted: #8b96a5;
+    --line: #2d3340;
+    --accent: #2dd4bf;
+    --accent-dark: #5eead4;
+    --warn: #c8960c;
+    --focus-ring: #818cf8;
+    --tint-green: #1a2d2a;
+    --tint-green-border: #2a4a45;
+    --tint-warn-bg: #2a2010;
+    --tint-warn-border: #6b5010;
+  }
+
+  /* Hardcoded light colours that can't be expressed as variables */
+  .icon-btn:hover,
+  .icon-btn.active,
+  .reload-btn:hover      { background: var(--tint-green); }
+
+  .btn-secondary:hover   { background: #252830; border-color: #3d4455; }
+
+  .local-shards-status   { background: #1a2820; border-color: #2a4535; }
+
+  code                   { background: #252830; }
+
+  .status                { background: var(--tint-warn-bg); border-color: var(--tint-warn-border); }
+  .status.info           { background: var(--tint-green); border-color: var(--tint-green-border); }
+
+  .coverage span         { background: var(--tint-green); }
+
+  /* Signal chips */
+  .signal-chip.high      { background: #2d1515; border-color: #5c2525; color: #fca5a5; }
+  .signal-chip.medium    { background: #2a1f0a; border-color: #6b4d10; color: #fcd34d; }
+  .signal-chip.positive  { background: #0f2d1a; border-color: #1a5c30; color: #6ee7b7; }
+  .signal-chip.info      { background: #0f1e35; border-color: #1e3a6b; color: #93c5fd; }
+
+  /* Cert rate badges */
+  .cert-rate.good        { background: #0f2d1a; color: #6ee7b7; }
+  .cert-rate.ok          { background: #2a1f0a; color: #fcd34d; }
+  .cert-rate.poor        { background: #2d1515; color: #fca5a5; }
+
+  /* Trend arrows */
+  .trend-arrow.up        { color: #34d399; }
+  .trend-arrow.down      { color: #f87171; }
+
+  /* Suggestion chips */
+  .suggestion-chip:hover { background: var(--tint-green); }
+
+  /* Sponsor score badges */
+  .sponsor-score.grade-A { background: #0f2d1a; color: #6ee7b7; }
+  .sponsor-score.grade-B { background: #0f1e35; color: #93c5fd; }
+  .sponsor-score.grade-C { background: #2a1f0a; color: #fcd34d; }
+  .sponsor-score.grade-D { background: #2d1a0a; color: #fb923c; }
+  .sponsor-score.grade-F { background: #2d1515; color: #fca5a5; }
 }
 
 * {
@@ -61,13 +125,13 @@ main {
 }
 
 .icon-btn:hover {
-  background: #e8f1ef;
+  background: var(--tint-green);
   border-color: var(--accent);
   color: var(--accent);
 }
 
 .icon-btn.active {
-  background: #e8f1ef;
+  background: var(--tint-green);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -93,7 +157,7 @@ main {
 }
 
 .reload-btn:hover {
-  background: #e8f1ef;
+  background: var(--tint-green);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -263,14 +327,14 @@ button:hover {
   line-height: 1.4;
   padding: 10px;
   /* default: warning */
-  background: #fff7df;
-  border: 1px solid #ead28c;
+  background: var(--tint-warn-bg);
+  border: 1px solid var(--tint-warn-border);
   color: var(--warn);
 }
 
 .status.info {
-  background: #e8f1ef;
-  border-color: #a8cfc9;
+  background: var(--tint-green);
+  border-color: var(--tint-green-border);
   color: var(--accent-dark);
 }
 
@@ -282,7 +346,7 @@ button:hover {
 }
 
 .coverage span {
-  background: #e8f1ef;
+  background: var(--tint-green);
   border-radius: 6px;
   color: var(--accent-dark);
   font-size: 12px;
@@ -503,7 +567,7 @@ dd {
 }
 
 .suggestion-chip:hover {
-  background: #e8f1ef;
+  background: var(--tint-green);
   color: var(--accent-dark);
 }
 
