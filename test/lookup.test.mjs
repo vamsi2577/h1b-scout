@@ -150,6 +150,77 @@ test("calculateCertRate returns rounded percentage", () => {
 // ── lookup.js: "low" confidence branch ───────────────────────────────────────
 // "ACME GLOBAL" (11 chars) is a substring of "ACME GLOBAL SOLUTIONS" (20 chars).
 // score = min(11,20)/max(11,20) = 0.55 which is ≤ 0.7, so findEmployer assigns "low".
+// ── computeSponsorScore ───────────────────────────────────────────────────────
+
+test("computeSponsorScore returns null when no LCA filing data", () => {
+  const result = VisaSponsor.lookupSponsorship(index, "Unknown Co", "Engineer");
+  assert.equal(VisaSponsor.computeSponsorScore(result), null);
+});
+
+test("computeSponsorScore grades A for high cert rate, high volume, trending up", () => {
+  const bigIndex = {
+    metadata: { fiscalYears: [2026, 2025], partialYear: 2026, coverageLabel: "FY2026 Q1 + FY2025" },
+    aliases: {},
+    employers: {
+      BIG: {
+        displayName: "Big Corp",
+        years: {
+          "2026": {
+            summary: { lca: { employerTotal: 80, titleTotal: 0, certified: 78, denied: 1, withdrawn: 1, avgWage: 150000, minWage: 140000, maxWage: 160000 }, perm: { employerTotal: 0, titleTotal: 0, certified: 0, denied: 0, withdrawn: 0 } },
+            titles: {}
+          },
+          "2025": {
+            summary: { lca: { employerTotal: 60, titleTotal: 0, certified: 58, denied: 1, withdrawn: 1, avgWage: 140000, minWage: 130000, maxWage: 150000 }, perm: { employerTotal: 0, titleTotal: 0, certified: 0, denied: 0, withdrawn: 0 } },
+            titles: {}
+          }
+        }
+      }
+    }
+  };
+  const result = VisaSponsor.lookupSponsorship(bigIndex, "Big Corp", "Engineer");
+  const score = VisaSponsor.computeSponsorScore(result);
+  assert.ok(score !== null);
+  assert.equal(score.grade, "A");
+  assert.ok(score.score >= 85);
+});
+
+test("computeSponsorScore grades D or F for low cert rate with few filings", () => {
+  // 2 certified out of 10 total = 20% cert rate, only 3 filings total → very low score
+  const badIndex = {
+    metadata: { fiscalYears: [2026, 2025], partialYear: 2026, coverageLabel: "FY2026 Q1 + FY2025" },
+    aliases: {},
+    employers: {
+      BAD: {
+        displayName: "Bad Corp",
+        years: {
+          "2026": {
+            summary: { lca: { employerTotal: 2, titleTotal: 0, certified: 0, denied: 1, withdrawn: 1, avgWage: null, minWage: null, maxWage: null }, perm: { employerTotal: 0, titleTotal: 0, certified: 0, denied: 0, withdrawn: 0 } },
+            titles: {}
+          },
+          "2025": {
+            summary: { lca: { employerTotal: 1, titleTotal: 0, certified: 0, denied: 1, withdrawn: 0, avgWage: null, minWage: null, maxWage: null }, perm: { employerTotal: 0, titleTotal: 0, certified: 0, denied: 0, withdrawn: 0 } },
+            titles: {}
+          }
+        }
+      }
+    }
+  };
+  const result = VisaSponsor.lookupSponsorship(badIndex, "Bad Corp", "Engineer");
+  const score = VisaSponsor.computeSponsorScore(result);
+  assert.ok(score !== null);
+  assert.ok(["D", "F"].includes(score.grade), `expected D or F but got ${score.grade}`);
+  assert.ok(score.score < 55);
+});
+
+test("computeSponsorScore exposes certRate and volume", () => {
+  const result = VisaSponsor.lookupSponsorship(index, "Acme Inc.", "Software Engineer");
+  const score = VisaSponsor.computeSponsorScore(result);
+  assert.ok(score !== null);
+  assert.ok(typeof score.certRate === "number");
+  assert.ok(typeof score.volume === "number");
+  assert.ok(score.volume > 0);
+});
+
 test("substring match returns low confidence when score <= 0.7", () => {
   const indexLow = {
     metadata: { fiscalYears: [2026], partialYear: 2026, coverageLabel: "FY2026" },
@@ -161,4 +232,85 @@ test("substring match returns low confidence when score <= 0.7", () => {
   // Ratio 11/20 = 0.55 → confidence "low" (≤ 0.7 threshold in findEmployer).
   const result = VisaSponsor.lookupSponsorship(indexLow, "Acme Global", "Software Engineer");
   assert.equal(result.confidence, "low");
+});
+
+// ── bestTitleStats: Jaccard false-positive guards ────────────────────────────
+
+// Build a focused index for title-matching tests.
+// Employer has three title entries that are easily confused when query tokens are short.
+const titleTestIndex = {
+  metadata: { fiscalYears: [2026], partialYear: 2026, coverageLabel: "FY2026" },
+  aliases: {},
+  employers: {
+    CORP: {
+      displayName: "Corp",
+      years: {
+        "2026": {
+          summary: {
+            lca: { employerTotal: 10, titleTotal: 0, certified: 10, denied: 0, withdrawn: 0, avgWage: 150000, minWage: 140000, maxWage: 160000 },
+            perm: { employerTotal: 0, titleTotal: 0, certified: 0, denied: 0, withdrawn: 0 }
+          },
+          titles: {
+            // Exact data-engineer entry
+            "DATA ENGINEER": {
+              lca: { employerTotal: 3, certified: 3, denied: 0, withdrawn: 0 },
+              perm: { employerTotal: 0, certified: 0, denied: 0, withdrawn: 0 }
+            },
+            // A different data-adjacent title — should NOT match "Data Engineer"
+            "DATA ANALYST": {
+              lca: { employerTotal: 5, certified: 5, denied: 0, withdrawn: 0 },
+              perm: { employerTotal: 0, certified: 0, denied: 0, withdrawn: 0 }
+            },
+            // Machine Learning — shares "MACHINE" token with "Machine Vision"
+            "MACHINE LEARNING ENGINEER": {
+              lca: { employerTotal: 2, certified: 2, denied: 0, withdrawn: 0 },
+              perm: { employerTotal: 0, certified: 0, denied: 0, withdrawn: 0 }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+test("bare 'Engineer' (all stop words) falls back to employer summary, not a title match", () => {
+  // titleTokens("Engineer") → [] → Jaccard skipped → titleTotal stays 0 (summary value)
+  const result = VisaSponsor.lookupSponsorship(titleTestIndex, "Corp", "Engineer");
+  assert.equal(result.confidence, "high");
+  // titleTotal must be 0 because no title match was made; employer summary has titleTotal 0
+  assert.equal(result.byFiscalYear["2026"].lca.titleTotal, 0);
+});
+
+test("'Senior Engineer' (all stop words) also falls back to employer summary", () => {
+  const result = VisaSponsor.lookupSponsorship(titleTestIndex, "Corp", "Senior Engineer");
+  assert.equal(result.byFiscalYear["2026"].lca.titleTotal, 0);
+});
+
+test("'Data Engineer' exact match is found before Jaccard runs", () => {
+  // normalizeTitle("Data Engineer") = "DATA ENGINEER" → exact key hit → titleTotal = 3
+  const result = VisaSponsor.lookupSponsorship(titleTestIndex, "Corp", "Data Engineer");
+  assert.equal(result.byFiscalYear["2026"].lca.titleTotal, 3);
+});
+
+test("'Data Engineer' does NOT fall through to 'Data Analyst' via Jaccard (1-token guard)", () => {
+  // If the exact key were absent, Jaccard on token ["DATA"] vs ["DATA","ANALYST"]
+  // scores 0.5 which is below the 1-token threshold of 0.9 — no spurious match.
+  const indexWithoutExact = structuredClone(titleTestIndex);
+  delete indexWithoutExact.employers.CORP.years["2026"].titles["DATA ENGINEER"];
+  const result = VisaSponsor.lookupSponsorship(indexWithoutExact, "Corp", "Data Engineer");
+  // Should fall back to summary (titleTotal 0), not pick DATA ANALYST (titleTotal 5)
+  assert.equal(result.byFiscalYear["2026"].lca.titleTotal, 0);
+});
+
+test("'Machine Vision Engineer' does NOT match 'Machine Learning Engineer' via single-token overlap", () => {
+  // queryTokens("Machine Vision Engineer") = ["MACHINE","VISION"] (2 tokens)
+  // DB title "MACHINE LEARNING ENGINEER" tokens = ["MACHINE","LEARNING"]
+  // overlap = 1 (only "MACHINE") → below minOverlap=2 → rejected
+  const result = VisaSponsor.lookupSponsorship(titleTestIndex, "Corp", "Machine Vision Engineer");
+  assert.equal(result.byFiscalYear["2026"].lca.titleTotal, 0);
+});
+
+test("'Machine Learning Engineer' matches its own DB entry via exact key", () => {
+  const result = VisaSponsor.lookupSponsorship(titleTestIndex, "Corp", "Machine Learning Engineer");
+  assert.equal(result.byFiscalYear["2026"].lca.titleTotal, 2);
 });

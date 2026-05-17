@@ -89,12 +89,32 @@
     const exact = titles[normalization.normalizeTitle(jobTitle)];
     if (exact) return exact;
 
+    const queryTokens = normalization.titleTokens(jobTitle);
+
+    // Title collapsed to zero meaningful tokens after stop-word removal (e.g. bare
+    // "Engineer", "Senior Engineer"). Jaccard on an empty set is undefined — skip
+    // fuzzy matching and fall back to the employer-level summary instead.
+    if (queryTokens.length === 0) return null;
+
+    // Scale the acceptance threshold by query token count:
+    //   1 token  → 0.9: the DB title must also be a single-token set with the same
+    //              word (score = 1.0). Prevents "DATA" matching "DATA ANALYST" (0.5).
+    //   2+ tokens → 0.45: existing behaviour, but a single shared word is not
+    //              sufficient — at least 2 tokens must overlap to guard against
+    //              e.g. "MACHINE LEARNING" spuriously matching "MACHINE VISION".
+    const threshold = queryTokens.length === 1 ? 0.9 : 0.45;
+    const querySet = new Set(queryTokens);
+
     let best = null;
     for (const [title, stats] of Object.entries(titles)) {
       const score = normalization.titleSimilarity(jobTitle, title);
-      if (score >= 0.45 && (!best || score > best.score)) {
-        best = { score, stats };
+      if (score < threshold) continue;
+      if (querySet.size >= 2) {
+        const dbTokens = normalization.titleTokens(title);
+        const overlap = dbTokens.filter((t) => querySet.has(t)).length;
+        if (overlap < 2) continue;
       }
+      if (!best || score > best.score) best = { score, stats };
     }
     return best?.stats || null;
   }
@@ -130,6 +150,40 @@
 
     candidates.sort((a, b) => b.score - a.score);
     return candidates.slice(0, limit);
+  }
+
+  // Compute an A–F sponsorship grade from combined LCA stats + trend.
+  // Returns null when there is no LCA filing data (nothing meaningful to score).
+  //
+  // Scoring (max 100):
+  //   Cert rate  0–60 pts  — primary signal; reflects reliability as a sponsor
+  //   Volume     0–30 pts  — log-scaled so small companies aren't crushed;
+  //                          ~10 at 1 filing, ~23 at 10, ~30 at 100+
+  //   Trend      0–10 pts  — year-over-year direction (up=10, flat=5, down=0)
+  //
+  // Grades: A ≥ 85 | B ≥ 70 | C ≥ 55 | D ≥ 40 | F < 40
+  function computeSponsorScore(lookup) {
+    const { combined, byFiscalYear, fiscalYears } = lookup;
+    const filingTotal = (combined.lca.certified || 0) + (combined.lca.denied || 0) + (combined.lca.withdrawn || 0);
+    if (!filingTotal) return null;
+
+    const certRate = calculateCertRate(combined.lca.certified, combined.lca.denied, combined.lca.withdrawn);
+    const volume = combined.lca.employerTotal || 0;
+
+    const certScore   = Math.round(certRate * 0.6);
+    const volumeScore = Math.min(30, Math.round(10 * Math.log10(volume || 1) + 10));
+
+    const years = [...(fiscalYears || [])].sort((a, b) => b - a);
+    let trendScore = 5; // neutral default when only one year is available
+    if (years.length >= 2) {
+      const curr  = byFiscalYear[String(years[0])]?.lca?.employerTotal || 0;
+      const prior = byFiscalYear[String(years[1])]?.lca?.employerTotal || 0;
+      trendScore = curr > prior * 1.1 ? 10 : curr < prior * 0.9 ? 0 : 5;
+    }
+
+    const score = certScore + volumeScore + trendScore;
+    const grade = score >= 85 ? "A" : score >= 70 ? "B" : score >= 55 ? "C" : score >= 40 ? "D" : "F";
+    return { score, grade, certRate, volume };
   }
 
   function calculateTrend(curr, prior) {
@@ -181,6 +235,7 @@
     lookupSponsorship,
     suggestCompanies,
     calculateTrend,
-    calculateCertRate
+    calculateCertRate,
+    computeSponsorScore
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

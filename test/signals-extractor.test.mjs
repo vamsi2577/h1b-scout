@@ -208,6 +208,34 @@ test("detects 'everify' (no hyphen) as everify_enrolled", () => {
   assert.ok(signals.some((s) => s.type === "everify_enrolled"));
 });
 
+// ── No C2C / W2 only ─────────────────────────────────────────────────────────
+
+test("detects 'no C2C'", () => {
+  const signals = withBody("No C2C. W2 candidates only.", extractSignals);
+  assert.ok(signals.some((s) => s.type === "no_c2c"));
+  assert.equal(signals.find((s) => s.type === "no_c2c").severity, "medium");
+});
+
+test("detects 'no corp-to-corp'", () => {
+  const signals = withBody("No corp-to-corp arrangements will be considered.", extractSignals);
+  assert.ok(signals.some((s) => s.type === "no_c2c"));
+});
+
+test("detects 'W2 only'", () => {
+  const signals = withBody("This is a W2 only position. No third-party vendors.", extractSignals);
+  assert.ok(signals.some((s) => s.type === "no_c2c"));
+});
+
+test("detects 'must be on W2'", () => {
+  const signals = withBody("Candidates must be on W2 with our company.", extractSignals);
+  assert.ok(signals.some((s) => s.type === "no_c2c"));
+});
+
+test("detects 'corp to corp not accepted'", () => {
+  const signals = withBody("Corp to corp not accepted for this role.", extractSignals);
+  assert.ok(signals.some((s) => s.type === "no_c2c"));
+});
+
 // ── No false positives ────────────────────────────────────────────────────────
 
 test("returns no signals for a clean job description", () => {
