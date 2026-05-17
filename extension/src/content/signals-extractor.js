@@ -92,6 +92,46 @@
         /\b(secret|top\s+secret|ts)\s+clearance\s+(preferred|eligible|a\s+plus)\b/i,
         /\b(preferred|bonus|nice)\s+.{0,40}\bclearance\b/i
       ]
+    },
+
+    // ── Sponsorship available (positive) ─────────────────────────────────────
+    {
+      type: "sponsorship_available",
+      label: "Visa sponsorship available",
+      severity: "positive",
+      patterns: [
+        /\bvisa\s+sponsorship\s+(is\s+)?(available|provided|offered)\b/i,
+        /\bwill\s+sponsor\b/i,
+        /\bsponsorship\s+provided\b/i,
+        /\bwe\s+sponsor\b/i,
+        /\bh[-‑]?1b\s+sponsor(ship)?\b/i,
+        /\bh1b\s+sponsor(ship)?\b/i
+      ]
+    },
+
+    // ── OPT / CPT welcome (positive) ─────────────────────────────────────────
+    {
+      type: "opt_cpt_welcome",
+      label: "OPT/CPT welcome",
+      severity: "positive",
+      patterns: [
+        /\bOPT\s+welcome\b/i,
+        /\bCPT\s+welcome\b/i,
+        /\bOPT\s*\/\s*CPT\b/i,
+        /\bSTEM\s+OPT\b/i,
+        /\bOPT\s+eligible\b/i
+      ]
+    },
+
+    // ── E-Verify enrolled (info) ──────────────────────────────────────────────
+    {
+      type: "everify_enrolled",
+      label: "E-Verify participant",
+      severity: "info",
+      patterns: [
+        /\bE[-‑]Verify\b/i,
+        /\beverify\b/i
+      ]
     }
   ];
 
