@@ -68,12 +68,12 @@
   /* Suggestion chips */
   .suggestion-chip:hover { background: var(--tint-green); }
 
-  /* Sponsor score badges */
-  .sponsor-score.grade-A { background: #0f2d1a; color: #6ee7b7; }
-  .sponsor-score.grade-B { background: #0f1e35; color: #93c5fd; }
-  .sponsor-score.grade-C { background: #2a1f0a; color: #fcd34d; }
-  .sponsor-score.grade-D { background: #2d1a0a; color: #fb923c; }
-  .sponsor-score.grade-F { background: #2d1515; color: #fca5a5; }
+  /* Grade badge */
+  .grade-badge.grade-A { background: #0f2d1a; color: #6ee7b7; }
+  .grade-badge.grade-B { background: #0f1e35; color: #93c5fd; }
+  .grade-badge.grade-C { background: #2a1f0a; color: #fcd34d; }
+  .grade-badge.grade-D { background: #2d1a0a; color: #fb923c; }
+  .grade-badge.grade-F { background: #2d1515; color: #fca5a5; }
 }
 
 * {
@@ -502,8 +502,12 @@ dd {
 
 .signal-chip span {
   color: inherit;
+  display: -webkit-box;
   font-size: 11px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   opacity: 0.75;
+  overflow: hidden;
 }
 
 /* ── Stat card — trend + rate row ──────────────────────────────────────────── */
@@ -571,20 +575,80 @@ dd {
   color: var(--accent-dark);
 }
 
-/* ── Sponsorship score badge ────────────────────────────────────────────────── */
-.sponsor-score {
+/* ── Grade badge (header) ───────────────────────────────────────────────────── */
+.grade-badge {
   border-radius: 6px;
+  display: inline-block;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.02em;
-  padding: 5px 9px;
+  margin: 6px 0 0;
+  padding: 4px 9px;
 }
 
-.sponsor-score.grade-A { background: #d1fae5; color: #064e3b; }
-.sponsor-score.grade-B { background: #dbeafe; color: #1e3a5f; }
-.sponsor-score.grade-C { background: #fef9c3; color: #713f12; }
-.sponsor-score.grade-D { background: #ffedd5; color: #7c2d12; }
-.sponsor-score.grade-F { background: #fee2e2; color: #7f1d1d; }
+.grade-badge.grade-A { background: #d1fae5; color: #064e3b; }
+.grade-badge.grade-B { background: #dbeafe; color: #1e3a5f; }
+.grade-badge.grade-C { background: #fef9c3; color: #713f12; }
+.grade-badge.grade-D { background: #ffedd5; color: #7c2d12; }
+.grade-badge.grade-F { background: #fee2e2; color: #7f1d1d; }
+
+/* ── Lookup display row ─────────────────────────────────────────────────────── */
+.lookup-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.lookup-display {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lookup-text {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-edit {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  min-height: unset;
+  padding: 5px 10px;
+  flex-shrink: 0;
+}
+
+.btn-edit:hover {
+  background: var(--tint-green);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Form actions row ───────────────────────────────────────────────────────── */
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.form-actions button {
+  flex: 1;
+}
+
+/* ── Info cards (Year breakdown / Sources) ──────────────────────────────────── */
+.info-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
 
 /* Keyboard focus rings — accessibility */
 input:focus-visible,

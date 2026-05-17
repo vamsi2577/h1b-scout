@@ -34,9 +34,18 @@ const elements = {
   permCertified: document.querySelector("#permCertified"),
   permDenied: document.querySelector("#permDenied"),
   permWithdrawn: document.querySelector("#permWithdrawn"),
+  permBreakdown: document.querySelector("#permBreakdown"),
+  statsGrid: document.querySelector("#statsGrid"),
+  wageCard: document.querySelector("#wageCard"),
+  yearCard: document.querySelector("#yearCard"),
   wageSummary: document.querySelector("#wageSummary"),
   dataAge: document.querySelector("#dataAge"),
   sponsorScore: document.querySelector("#sponsorScore"),
+  lookupDisplay: document.querySelector("#lookupDisplay"),
+  lookupCompanyText: document.querySelector("#lookupCompanyText"),
+  lookupTitleText: document.querySelector("#lookupTitleText"),
+  editLookupBtn: document.querySelector("#editLookupBtn"),
+  cancelEditBtn: document.querySelector("#cancelEditBtn"),
   suggestionsSection: document.querySelector("#suggestionsSection"),
   suggestionsList: document.querySelector("#suggestionsList"),
   // Settings drawer children
@@ -92,16 +101,24 @@ function setStatus(message, type = "warning") {
 // ── Stats rendering ───────────────────────────────────────────────────────────
 function renderStats(stats) {
   elements.lcaTotal.textContent = formatNumber(stats.lca.employerTotal);
-  elements.lcaTitleTotal.textContent = `${formatNumber(stats.lca.titleTotal)} for this title`;
+  elements.lcaTitleTotal.textContent = stats.lca.titleTotal > 0
+    ? `${formatNumber(stats.lca.titleTotal)} for this title`
+    : stats.lca.employerTotal > 0 ? "title not matched" : "0 for this title";
   elements.lcaCertified.textContent = formatNumber(stats.lca.certified);
   elements.lcaDenied.textContent = formatNumber(stats.lca.denied);
   elements.lcaWithdrawn.textContent = formatNumber(stats.lca.withdrawn);
 
   elements.permTotal.textContent = formatNumber(stats.perm.employerTotal);
-  elements.permTitleTotal.textContent = `${formatNumber(stats.perm.titleTotal)} for this title`;
+  elements.permTitleTotal.textContent = stats.perm.titleTotal > 0
+    ? `${formatNumber(stats.perm.titleTotal)} for this title`
+    : stats.perm.employerTotal > 0 ? "title not matched" : "0 for this title";
   elements.permCertified.textContent = formatNumber(stats.perm.certified);
   elements.permDenied.textContent = formatNumber(stats.perm.denied);
   elements.permWithdrawn.textContent = formatNumber(stats.perm.withdrawn);
+
+  // Collapse PERM breakdown when all zero
+  const permAllZero = !stats.perm.certified && !stats.perm.denied && !stats.perm.withdrawn;
+  elements.permBreakdown.hidden = permAllZero;
 
   // Certification rate badges
   // Thresholds: >= 90% (Good/Green), >= 70% (OK/Yellow), < 70% (Poor/Red).
@@ -210,7 +227,8 @@ function renderSignals(signals) {
     const chip = document.createElement("div");
     chip.className = `signal-chip ${signal.severity}`;
     const label = document.createElement("strong");
-    const icon = signal.severity === "positive" ? "✓"
+    const icon = signal.severity === "high" ? "✕"
+      : signal.severity === "positive" ? "✓"
       : signal.severity === "info" ? "ℹ"
       : "⚠";
     label.textContent = `${icon} ${signal.label}`;
@@ -231,12 +249,11 @@ function renderSignals(signals) {
 function renderSponsorScore(lookup) {
   const el = elements.sponsorScore;
   const result = VisaSponsor.computeSponsorScore(lookup);
-  if (!result) { el.hidden = true; el.textContent = ""; el.className = ""; return; }
+  if (!result) { el.hidden = true; el.textContent = ""; el.className = "grade-badge"; return; }
   el.hidden = false;
-  el.textContent = `${result.grade}`;
-  el.className = `sponsor-score grade-${result.grade}`;
-  el.setAttribute("aria-label", `Sponsorship score: ${result.grade} (${result.score}/100)`);
-  el.title = `H-1B Friendliness: ${result.grade} (${result.score}/100)\n${result.certRate}% approval rate · ${formatNumber(result.volume)} LCA filings`;
+  el.textContent = `H-1B Grade: ${result.grade}`;
+  el.className = `grade-badge grade-${result.grade}`;
+  el.title = `Score: ${result.score}/100 · ${result.certRate}% approval · ${formatNumber(result.volume)} LCA filings`;
 }
 
 function renderLinks(links) {
@@ -272,6 +289,11 @@ function render(payload) {
   elements.jobHeading.title = currentContext.jobTitle || "";
   elements.companyInput.value = company;
   elements.titleInput.value = title;
+  elements.lookupCompanyText.textContent = company || "—";
+  elements.lookupTitleText.textContent = title || "—";
+  // Collapse form back to display mode on fresh data load
+  elements.lookupForm.hidden = true;
+  elements.lookupDisplay.hidden = false;
   elements.coverageLabel.textContent = lookup.coverageLabel;
   elements.confidenceLabel.textContent = lookup.confidence === "none" ? "No match" : `${lookup.confidence} match`;
 
@@ -284,6 +306,12 @@ function render(payload) {
   } else {
     setStatus("");
   }
+
+  // Hide data sections when there is no employer match
+  const hasMatch = !!lookup.employerMatch;
+  elements.statsGrid.hidden = !hasMatch;
+  elements.wageCard.hidden = !hasMatch;
+  elements.yearCard.hidden = !hasMatch;
 
   renderSignals(currentContext.signals || []);
   renderSuggestions(payload.suggestions || []);
@@ -319,8 +347,25 @@ elements.form.addEventListener("submit", async (event) => {
       source: currentContext.source || "manual",
       url: currentContext.url || tab?.url || ""
     },
-    render
+    (payload) => {
+      render(payload);
+      // Collapse form back to display mode after a successful lookup
+      elements.lookupForm.hidden = true;
+      elements.lookupDisplay.hidden = false;
+    }
   );
+});
+
+// ── Edit lookup toggle ────────────────────────────────────────────────────────
+elements.editLookupBtn.addEventListener("click", () => {
+  elements.lookupForm.hidden = false;
+  elements.lookupDisplay.hidden = true;
+  elements.companyInput.focus();
+});
+
+elements.cancelEditBtn.addEventListener("click", () => {
+  elements.lookupForm.hidden = true;
+  elements.lookupDisplay.hidden = false;
 });
 
 // ── Reload button ─────────────────────────────────────────────────────────────

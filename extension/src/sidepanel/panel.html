@@ -13,6 +13,7 @@
           <p class="eyebrow">H1B Scout</p>
           <h1 id="companyHeading">No job detected</h1>
           <p id="jobHeading" class="muted">Open a job post to see sponsorship history.</p>
+          <p id="sponsorScore" class="grade-badge" hidden></p>
         </div>
         <div class="header-actions">
           <button id="reloadBtn" class="icon-btn" title="Reload data" aria-label="Reload sponsorship data">
@@ -63,7 +64,15 @@
         </div>
       </section>
 
-      <form id="lookupForm" class="edit-form">
+      <div class="lookup-row">
+        <div id="lookupDisplay" class="lookup-display">
+          <span id="lookupCompanyText" class="lookup-text muted"></span>
+          <span id="lookupTitleText" class="lookup-text muted"></span>
+        </div>
+        <button id="editLookupBtn" class="btn-edit" type="button" aria-label="Edit company and title">Edit ✎</button>
+      </div>
+
+      <form id="lookupForm" class="edit-form" hidden>
         <label>
           Company
           <input id="companyInput" name="companyName" autocomplete="organization">
@@ -72,7 +81,10 @@
           Job title
           <input id="titleInput" name="jobTitle" autocomplete="off">
         </label>
-        <button type="submit">Update lookup</button>
+        <div class="form-actions">
+          <button type="submit">Update lookup</button>
+          <button type="button" id="cancelEditBtn" class="btn-secondary">Cancel</button>
+        </div>
       </form>
 
       <section id="status" class="status" hidden></section>
@@ -85,7 +97,6 @@
       <section class="coverage">
         <span id="coverageLabel">FY2026 Q1 + FY2025</span>
         <span id="confidenceLabel">No match</span>
-        <span id="sponsorScore" hidden aria-label="Sponsorship score"></span>
       </section>
 
       <section id="signalsSection" hidden>
@@ -93,7 +104,7 @@
         <div id="signalsList" class="signals-list"></div>
       </section>
 
-      <section class="stats-grid" aria-label="Combined sponsorship statistics">
+      <section id="statsGrid" class="stats-grid" aria-label="Combined sponsorship statistics">
         <article class="stat-card">
           <h2>H-1B LCA</h2>
           <div class="total-row">
@@ -117,7 +128,7 @@
             <span id="permRate" class="cert-rate"></span>
           </div>
           <p id="permTitleTotal">0 for this title</p>
-          <dl>
+          <dl id="permBreakdown">
             <div><dt>Certified</dt><dd id="permCertified">0</dd></div>
             <div><dt>Denied</dt><dd id="permDenied">0</dd></div>
             <div><dt>Withdrawn</dt><dd id="permWithdrawn">0</dd></div>
@@ -125,19 +136,18 @@
         </article>
       </section>
 
-      <section class="wage-card">
+      <section id="wageCard" class="wage-card">
         <h2>Offered wage</h2>
         <p id="wageSummary">No wage data in the current match.</p>
       </section>
 
-      <section>
+      <section id="yearCard" class="info-card">
         <h2 class="section-title">Year breakdown</h2>
         <div id="yearBreakdown" class="year-list"></div>
       </section>
 
-      <section>
+      <section class="info-card">
         <h2 class="section-title">Sources</h2>
-        <p class="source-note">FY2026 is partial year-to-date data based on current published OFLC coverage.</p>
         <div id="sourceLinks" class="links"></div>
         <p id="dataAge" class="source-note"></p>
       </section>
