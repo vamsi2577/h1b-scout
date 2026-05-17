@@ -292,13 +292,13 @@ function render(payload) {
   elements.lookupCompanyText.textContent = company || "—";
   elements.lookupTitleText.textContent = title || "—";
   // Collapse form back to display mode on fresh data load
-  elements.lookupForm.hidden = true;
+  elements.form.hidden = true;
   elements.lookupDisplay.hidden = false;
   elements.coverageLabel.textContent = lookup.coverageLabel;
   elements.confidenceLabel.textContent = lookup.confidence === "none" ? "No match" : `${lookup.confidence} match`;
 
   if (!company && !title) {
-    setStatus("Open a job post on Greenhouse, Workday, Lever, Ashby, or LinkedIn — or enter a company and title manually.");
+    setStatus("Open a job post on Greenhouse, Workday, Lever, Ashby, LinkedIn, or HigherEdJobs — or enter a company and title manually.");
   } else if (!lookup.employerMatch) {
     setStatus("No employer match found in the local OFLC index. Try editing the company name.");
   } else if (!lookup.combined.lca.employerTotal && !lookup.combined.perm.employerTotal) {
@@ -350,7 +350,7 @@ elements.form.addEventListener("submit", async (event) => {
     (payload) => {
       render(payload);
       // Collapse form back to display mode after a successful lookup
-      elements.lookupForm.hidden = true;
+      elements.form.hidden = true;
       elements.lookupDisplay.hidden = false;
     }
   );
@@ -358,13 +358,13 @@ elements.form.addEventListener("submit", async (event) => {
 
 // ── Edit lookup toggle ────────────────────────────────────────────────────────
 elements.editLookupBtn.addEventListener("click", () => {
-  elements.lookupForm.hidden = false;
+  elements.form.hidden = false;
   elements.lookupDisplay.hidden = true;
   elements.companyInput.focus();
 });
 
 elements.cancelEditBtn.addEventListener("click", () => {
-  elements.lookupForm.hidden = true;
+  elements.form.hidden = true;
   elements.lookupDisplay.hidden = false;
 });
 
