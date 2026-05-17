@@ -247,36 +247,34 @@ test("fromJsonLd returns empty object when no scripts match", () => {
 });
 
 // ── HigherEdJobs ─────────────────────────────────────────────────────────────
+// Real DOM (verified against live page):
+//   <h1 id="jobtitle-header">Scientific Software Engineer (Radiology)</h1>
+//   <div class="job-inst"><a href="…">Johns Hopkins University</a></div>
 
 function higheredContext(doc) {
   const text = (selector) => doc.querySelector(selector)?.textContent?.trim() || "";
   return {
-    companyName: text(".institution") || text(".job-info .institution") || "",
-    jobTitle: text("#jobTitle") || ""
+    companyName: text(".job-inst") || "",
+    jobTitle: text("#jobtitle-header") || ""
   };
 }
 
-test("higheredContext extracts title and company using IDs and classes", () => {
+test("higheredContext extracts title and company from real HigherEdJobs selectors", () => {
   const mockDoc = {
     querySelector: (selector) => {
-      if (selector === "#jobTitle") return { textContent: "Scientific Software Engineer" };
-      if (selector === ".institution") return { textContent: "Johns Hopkins University" };
+      if (selector === "#jobtitle-header") return { textContent: " Scientific Software Engineer (Radiology)" };
+      if (selector === ".job-inst") return { textContent: "Johns Hopkins University" };
       return null;
     }
   };
   const result = higheredContext(mockDoc);
-  assert.equal(result.jobTitle, "Scientific Software Engineer");
+  assert.equal(result.jobTitle, "Scientific Software Engineer (Radiology)");
   assert.equal(result.companyName, "Johns Hopkins University");
 });
 
-test("higheredContext falls back to .job-info .institution", () => {
-  const mockDoc = {
-    querySelector: (selector) => {
-      if (selector === "#jobTitle") return { textContent: "IT Support" };
-      if (selector === ".job-info .institution") return { textContent: "Nova Southeastern University" };
-      return null;
-    }
-  };
+test("higheredContext returns empty strings when selectors don't match", () => {
+  const mockDoc = { querySelector: () => null };
   const result = higheredContext(mockDoc);
-  assert.equal(result.companyName, "Nova Southeastern University");
+  assert.equal(result.jobTitle, "");
+  assert.equal(result.companyName, "");
 });

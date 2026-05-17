@@ -242,9 +242,11 @@
   }
 
   function higheredContext() {
+    // DOM: <h1 id="jobtitle-header">…</h1>
+    //      <div class="job-inst"><a href="…">Institution Name</a></div>
     return {
-      companyName: text(".institution") || text(".job-info .institution") || "",
-      jobTitle: text("#jobTitle") || ""
+      companyName: text(".job-inst") || "",
+      jobTitle: text("#jobtitle-header") || ""
     };
   }
 
