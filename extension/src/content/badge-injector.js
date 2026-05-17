@@ -29,15 +29,15 @@
       });
     }
     if (isGreenhouse) {
-      // Support boards (.opening, .job-post) and search pages (Tailwind cards)
+      // my.greenhouse.io search results use data-provides="search-result".
+      // boards.greenhouse.io use .opening / .job-post / data-gh='job'.
+      // The old class-based selectors ([class*='border-gray-00'], div:has(>a[href*="/jobs/"]))
+      // were too broad and couldn't reliably extract company names via innerText lines.
       return document.querySelectorAll(`
-        .opening:not([${BADGE_ATTR}]), 
+        [data-provides="search-result"]:not([${BADGE_ATTR}]),
+        .opening:not([${BADGE_ATTR}]),
         .job-post:not([${BADGE_ATTR}]),
-        [class*='job-post']:not([${BADGE_ATTR}]),
-        [class*='opening']:not([${BADGE_ATTR}]),
-        [class*='border-gray-00']:not([${BADGE_ATTR}]),
-        [data-gh='job']:not([${BADGE_ATTR}]),
-        div:has(> a[href*="/jobs/"]):not([${BADGE_ATTR}])
+        [data-gh='job']:not([${BADGE_ATTR}])
       `.trim());
     }
     return [];
@@ -53,25 +53,23 @@
       );
     }
     if (isGreenhouse) {
-      // 1. Precise extraction for my.greenhouse.io search results
-      // Text looks like: "Job Title | | Company Name | | Location"
-      const lines = card.innerText.split('\n').map(l => l.trim()).filter(Boolean);
-      if (lines.length >= 2 && (card.className.includes('p-6') || card.className.includes('border-gray'))) {
-        // Find the line that is likely the company (usually index 1 or 2)
-        return lines[1]; 
-      }
+      // my.greenhouse.io search results: company name is always in <p class="body">
+      // next to the <h4 class="section-title"> job title. Using p.body avoids the
+      // company-logo__placeholder letter (e.g. "Z") polluting innerText line counts.
+      const bodyP = card.querySelector('p.body');
+      if (bodyP) return bodyP.textContent.trim();
 
-      // 2. Check for identifying labels (standard boards)
-      const perCardName = 
+      // boards.greenhouse.io standard boards
+      const perCardName =
         card.querySelector(".company-name")?.textContent?.trim() ||
         card.querySelector("[data-mapped='true'] .company-name")?.textContent?.trim() ||
         card.querySelector("[class*='company']")?.textContent?.trim() ||
         card.querySelector(".company")?.textContent?.trim() ||
         card.querySelector(".employer")?.textContent?.trim();
-      
+
       if (perCardName) return perCardName;
 
-      // 3. Fallback to board-wide company name from page meta or headings
+      // Fallback to board-wide company name from page meta or headings
       return (
         document.querySelector('meta[property="og:site_name"]')?.content?.trim() ||
         document.querySelector('meta[name="author"]')?.content?.trim() ||
@@ -92,11 +90,11 @@
       );
     }
     if (isGreenhouse) {
-      // For search results (Tailwind cards), append directly to card for absolute positioning
-      if (card.className.includes('p-6') || card.className.includes('border-gray')) {
-        return card;
-      }
-      // For standard boards, stick to inline targets
+      // my.greenhouse.io: inline badge appended to the p.body company name element
+      const bodyP = card.querySelector('p.body');
+      if (bodyP) return bodyP;
+
+      // boards.greenhouse.io: inline targets
       return (
         card.querySelector(".company-name") ||
         card.querySelector("[class*='company']") ||
