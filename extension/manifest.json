@@ -40,7 +40,6 @@
         "https://*.greenhouse.io/*"
       ],
       "js": [
-        "src/shared/normalization.js",
         "src/content/badge-injector.js"
       ],
       "css": ["src/content/badge.css"],

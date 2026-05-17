@@ -120,7 +120,7 @@
       end++;
     }
 
-    return text.slice(start, end).replace(/\s+/g, " ").trim();
+    return text.slice(start, end).replace(/[ \t]+/g, " ").trim();
   }
 
   function extractSignals() {

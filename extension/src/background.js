@@ -309,9 +309,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         for (const name of names) {
           const lookup = VisaSponsor.lookupSponsorship(shard, name, "");
           const years = lookup.fiscalYears || [];
-          const curr = lookup.byFiscalYear[years[0]]?.lca?.employerTotal ?? 0;
-          const prior = lookup.byFiscalYear[years[1]]?.lca?.employerTotal ?? 0;
-          const trend = VisaSponsor.calculateTrend(curr, prior);
+          let trend = "flat";
+          if (years.length >= 2) {
+            const curr = lookup.byFiscalYear[years[0]]?.lca?.employerTotal ?? 0;
+            const prior = lookup.byFiscalYear[years[1]]?.lca?.employerTotal ?? 0;
+            trend = VisaSponsor.calculateTrend(curr, prior);
+          }
           results[name] = { lca: lookup.combined.lca.employerTotal, confidence: lookup.confidence, trend };
         }
       } catch {

@@ -111,7 +111,8 @@ function renderStats(stats) {
     const rate = VisaSponsor.calculateCertRate(certified, denied, withdrawn);
     el.textContent = `${rate}% approved`;
     el.className = `cert-rate ${rate >= 90 ? "good" : rate >= 70 ? "ok" : "poor"}`;
-    el.title = `${rate}% certification rate (${formatNumber(certified)} certified of ${formatNumber(total)})`;
+    const sampleWarning = total < 5 ? " (Low sample size)" : "";
+    el.title = `${rate}% certification rate (${formatNumber(certified)} certified of ${formatNumber(total)})${sampleWarning}`;
   }
   setCertRate(elements.lcaRate, stats.lca.certified, stats.lca.denied, stats.lca.withdrawn);
   setCertRate(elements.permRate, stats.perm.certified, stats.perm.denied, stats.perm.withdrawn);
