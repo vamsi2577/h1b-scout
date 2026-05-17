@@ -49,6 +49,22 @@ test("detects long-form 'sponsorship ... is not available' with intervening clau
   assert.ok(signals.some((s) => s.type === "no_sponsorship"));
 });
 
+test("detects 'does not offer sponsorship' — Toyota-style phrasing", () => {
+  const signals = withBody(
+    "To save time applying, Toyota does not offer sponsorship of job applicants for employment-based visas or any other work authorization for this position at this time.",
+    extractSignals
+  );
+  const sig = signals.find((s) => s.type === "no_sponsorship");
+  assert.ok(sig, "should detect no_sponsorship");
+  assert.equal(sig.severity, "high");
+  assert.ok(sig.quote.toLowerCase().includes("sponsorship"));
+});
+
+test("detects 'do not provide sponsorship' variant", () => {
+  const signals = withBody("We do not provide sponsorship for employment-based visas.", extractSignals);
+  assert.ok(signals.some((s) => s.type === "no_sponsorship"));
+});
+
 // ── Citizenship required ──────────────────────────────────────────────────────
 
 test("detects 'US citizen only'", () => {

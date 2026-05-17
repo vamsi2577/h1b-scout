@@ -30,7 +30,10 @@
         /\bsponsorship\s+(is\s+)?(not|unavailable|not\s+available|not\s+provided|not\s+offered)\b/i,
         /\bsponsorship\b.{0,120}\bis\s+not\s+(available|provided|offered)\b/i,
         /\b(no|not\s+offer(ing)?|not\s+provid(ing)?)\b.{0,60}\bimmigration.{0,40}\bsupport\b/i,
-        /\bdoes\s+not\s+sponsor\b/i
+        /\bdoes\s+not\s+sponsor\b/i,
+        // "does/do not offer/provide/support sponsorship" — covers phrasings like
+        // "Toyota does not offer sponsorship of job applicants for employment-based visas"
+        /\b(do|does)\s+not\s+(offer|provide|support)\b.{0,50}\bsponsor(ship)?\b/i
       ]
     },
 
