@@ -1,4 +1,5 @@
 (function attachNormalization(root) {
+  if (root.VisaSponsor && root.VisaSponsor.normalizeText) return;
   const LEGAL_SUFFIXES = new Set([
     "INC",
     "INCORPORATED",

@@ -209,7 +209,10 @@ function renderSignals(signals) {
     const chip = document.createElement("div");
     chip.className = `signal-chip ${signal.severity}`;
     const label = document.createElement("strong");
-    label.textContent = signal.severity === "high" ? `⚠ ${signal.label}` : `ℹ ${signal.label}`;
+    const icon = signal.severity === "positive" ? "✓"
+      : signal.severity === "info" ? "ℹ"
+      : "⚠";
+    label.textContent = `${icon} ${signal.label}`;
     chip.append(label);
     if (signal.quote) {
       const quote = document.createElement("span");
@@ -252,7 +255,9 @@ function render(payload) {
   const title = truncate(currentContext.jobTitle || "");
 
   elements.companyHeading.textContent = company || "No company detected";
+  elements.companyHeading.title = currentContext.companyName || "";
   elements.jobHeading.textContent = title || "No job title detected";
+  elements.jobHeading.title = currentContext.jobTitle || "";
   elements.companyInput.value = company;
   elements.titleInput.value = title;
   elements.coverageLabel.textContent = lookup.coverageLabel;
@@ -306,14 +311,53 @@ elements.form.addEventListener("submit", async (event) => {
 });
 
 // ── Reload button ─────────────────────────────────────────────────────────────
-elements.reloadBtn.addEventListener("click", () => {
+// Re-injects the content script so the page is re-scraped, then waits for
+// CONTEXT_UPDATED (fast path) or falls back to GET_PANEL_DATA after 2 s
+// (for unsupported pages or when scripting is blocked).
+elements.reloadBtn.addEventListener("click", async () => {
   elements.reloadBtn.classList.add("spinning");
-  loadPanelData().finally(() => elements.reloadBtn.classList.remove("spinning"));
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+  if (!tab) {
+    elements.reloadBtn.classList.remove("spinning");
+    return;
+  }
+
+  // Ask the service worker to re-run the content script on the current tab.    // If it succeeds, the content script sends JOB_CONTEXT_FOUND → SW fires
+  // CONTEXT_UPDATED → the listener below handles rendering and stops the spinner.
+  // If it fails immediately (no tabId, scripting blocked), skip the 2 s wait
+  // and render the current context right away.
+  chrome.runtime.sendMessage({ type: "REEXTRACT", tabId: tab?.id }, (response) => {
+    if (response && !response.ok) {
+      clearTimeout(elements.reloadBtn._fallbackTimer);
+      loadPanelData().finally(() => elements.reloadBtn.classList.remove("spinning"));
+    }
+  });
+
+  // Fallback: if CONTEXT_UPDATED doesn't arrive within 2 s (unsupported page,
+  // scripting blocked, already-idle page with no DOM changes), pull whatever
+  // context the SW currently knows and render it.
+  const fallbackTimer = setTimeout(() => {
+    loadPanelData().finally(() => elements.reloadBtn.classList.remove("spinning"));
+  }, 2000);
+
+  // Store the timer id so the CONTEXT_UPDATED listener can cancel it early.
+  elements.reloadBtn._fallbackTimer = fallbackTimer;
 });
 
 // ── Background messages ───────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message) => {
-  if (message.type === "CONTEXT_UPDATED") loadPanelData();
+  if (message.type === "CONTEXT_UPDATED") {
+    // Cancel the reload fallback timer if the content script responded in time.
+    clearTimeout(elements.reloadBtn._fallbackTimer);
+    elements.reloadBtn.classList.remove("spinning");
+    loadPanelData();
+  }
+});
+
+// Clean up the fallback timer if the panel is closed while a reload is in flight.
+window.addEventListener("unload", () => {
+  clearTimeout(elements.reloadBtn._fallbackTimer);
 });
 
 // ── Settings drawer ───────────────────────────────────────────────────────────

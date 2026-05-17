@@ -45,6 +45,16 @@ const LocalShardDB = (() => {
     });
   }
 
+  async function remove(key) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      const req = tx.objectStore(STORE).delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   async function clear() {
     const db = await openDb();
     return new Promise((resolve, reject) => {
@@ -65,5 +75,5 @@ const LocalShardDB = (() => {
     });
   }
 
-  return { get, set, clear, keys };
+  return { get, set, remove, clear, keys };
 })();

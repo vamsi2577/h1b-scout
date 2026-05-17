@@ -49,6 +49,22 @@ test("detects long-form 'sponsorship ... is not available' with intervening clau
   assert.ok(signals.some((s) => s.type === "no_sponsorship"));
 });
 
+test("detects 'does not offer sponsorship' — Toyota-style phrasing", () => {
+  const signals = withBody(
+    "To save time applying, Toyota does not offer sponsorship of job applicants for employment-based visas or any other work authorization for this position at this time.",
+    extractSignals
+  );
+  const sig = signals.find((s) => s.type === "no_sponsorship");
+  assert.ok(sig, "should detect no_sponsorship");
+  assert.equal(sig.severity, "high");
+  assert.ok(sig.quote.toLowerCase().includes("sponsorship"));
+});
+
+test("detects 'do not provide sponsorship' variant", () => {
+  const signals = withBody("We do not provide sponsorship for employment-based visas.", extractSignals);
+  assert.ok(signals.some((s) => s.type === "no_sponsorship"));
+});
+
 // ── Citizenship required ──────────────────────────────────────────────────────
 
 test("detects 'US citizen only'", () => {
@@ -125,6 +141,73 @@ test("detects 'clearance eligible'", () => {
   assert.ok(signals.some((s) => s.type === "clearance_preferred"));
 });
 
+// ── Sponsorship available (positive) ─────────────────────────────────────────
+
+test("detects 'visa sponsorship available'", () => {
+  const signals = withBody(
+    "Visa sponsorship is available for qualified candidates.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "sponsorship_available"));
+  assert.equal(signals.find((s) => s.type === "sponsorship_available").severity, "positive");
+});
+
+test("detects 'will sponsor' as sponsorship_available", () => {
+  const signals = withBody(
+    "We will sponsor H-1B visas for exceptional candidates.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "sponsorship_available"));
+});
+
+test("detects 'h1b sponsor' as sponsorship_available", () => {
+  const signals = withBody(
+    "This company is an H1B sponsor and welcomes international applicants.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "sponsorship_available"));
+});
+
+// ── OPT / CPT welcome (positive) ─────────────────────────────────────────────
+
+test("detects 'OPT welcome'", () => {
+  const signals = withBody("OPT welcome. CPT candidates may also apply.", extractSignals);
+  assert.ok(signals.some((s) => s.type === "opt_cpt_welcome"));
+  assert.equal(signals.find((s) => s.type === "opt_cpt_welcome").severity, "positive");
+});
+
+test("detects 'OPT/CPT' as opt_cpt_welcome", () => {
+  const signals = withBody(
+    "We accept OPT/CPT students for this internship position.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "opt_cpt_welcome"));
+});
+
+test("detects 'STEM OPT' as opt_cpt_welcome", () => {
+  const signals = withBody(
+    "Candidates on STEM OPT extension are encouraged to apply.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "opt_cpt_welcome"));
+});
+
+// ── E-Verify enrolled (info) ──────────────────────────────────────────────────
+
+test("detects 'E-Verify' as everify_enrolled", () => {
+  const signals = withBody(
+    "This employer participates in E-Verify to confirm work authorization.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "everify_enrolled"));
+  assert.equal(signals.find((s) => s.type === "everify_enrolled").severity, "info");
+});
+
+test("detects 'everify' (no hyphen) as everify_enrolled", () => {
+  const signals = withBody("We use everify to confirm employment eligibility.", extractSignals);
+  assert.ok(signals.some((s) => s.type === "everify_enrolled"));
+});
+
 // ── No false positives ────────────────────────────────────────────────────────
 
 test("returns no signals for a clean job description", () => {
@@ -150,4 +233,31 @@ test("captures the matched quote text", () => {
   const sig = signals.find((s) => s.type === "no_sponsorship");
   assert.ok(sig?.quote, "should have a quote");
   assert.ok(sig.quote.toLowerCase().includes("sponsorship"));
+});
+
+// ── signals-extractor.js lines 99–103: getDescriptionText() selector path ────
+// The default mock returns null from querySelector, so all existing tests exercise
+// only the document.body.innerText fallback (line 103). This test overrides
+// querySelector to return a fake element for the first selector in
+// DESCRIPTION_SELECTORS ('[data-automation-id="jobPostingDescription"]'),
+// covering the selector-hit branch (lines 99–102).
+test("getDescriptionText uses selector element when querySelector returns a match", () => {
+  const originalQS = document.querySelector;
+  // The first selector tried is '[data-automation-id="jobPostingDescription"]' (Workday).
+  // Return a fake element only for that selector so the branch on line 101 is hit.
+  document.querySelector = (sel) => {
+    if (sel === '[data-automation-id="jobPostingDescription"]') {
+      return { innerText: "This position does not sponsor visas of any kind." };
+    }
+    return null;
+  };
+
+  try {
+    const signals = extractSignals();
+    // "does not sponsor" matches /\bdoes\s+not\s+sponsor\b/i → no_sponsorship
+    assert.ok(signals.some((s) => s.type === "no_sponsorship"),
+      "expected no_sponsorship signal from text read via selector element");
+  } finally {
+    document.querySelector = originalQS;
+  }
 });
