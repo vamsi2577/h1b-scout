@@ -117,7 +117,8 @@
   // Used as a last-resort fallback when the DOM carries no company name.
   function greenhouseCompanyFromPath(pathname = location.pathname) {
     const parts = pathname.split("/").filter(Boolean);
-    if (parts.length >= 2 && parts[1] === "jobs") {
+    // Greenhouse boards use /company-slug/jobs/job-id
+    if (parts.length >= 3 && parts[1] === "jobs") {
       return titleCaseSlug(parts[0]);
     }
     return "";
@@ -320,6 +321,7 @@
   // service-worker restart even when the script was already injected.
   if (!window._h1bScoutAttached) {
     window._h1bScoutAttached = true;
+    window._h1bScoutReextract = sendContext;
 
     // On LinkedIn, debounce the observer at 300 ms and narrow the root to
     // document.body to skip <head> style/script mutations from animations.

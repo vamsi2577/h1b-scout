@@ -318,8 +318,12 @@ elements.reloadBtn.addEventListener("click", async () => {
   elements.reloadBtn.classList.add("spinning");
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  // Ask the service worker to re-run the content script on the current tab.
-  // If it succeeds, the content script sends JOB_CONTEXT_FOUND → SW fires
+  if (!tab) {
+    elements.reloadBtn.classList.remove("spinning");
+    return;
+  }
+
+  // Ask the service worker to re-run the content script on the current tab.    // If it succeeds, the content script sends JOB_CONTEXT_FOUND → SW fires
   // CONTEXT_UPDATED → the listener below handles rendering and stops the spinner.
   // If it fails immediately (no tabId, scripting blocked), skip the 2 s wait
   // and render the current context right away.

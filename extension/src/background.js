@@ -428,7 +428,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ ok: false, error: error.message, context });
         }
       })
-      .catch((error) => sendResponse({ ok: false, error: error.message }));
+      .catch((error) => sendResponse({
+        ok: false,
+        error: error.message,
+        context: { companyName: "", jobTitle: "", source: "unsupported", url: "" }
+      }));
     return true;
   }
 
@@ -438,15 +442,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // before the content script fired).
   if (message.type === "REEXTRACT") {
     if (!tabId) { sendResponse({ ok: false }); return false; }
+
+    // First try calling the existing extraction function to avoid redundant re-injection.
     chrome.scripting.executeScript({
-      target: { tabId, allFrames: false },
-      files: [
-        "src/shared/normalization.js",
-        "src/content/signals-extractor.js",
-        "src/content/job-extractor.js"
-      ]
-    }).then(() => sendResponse({ ok: true }))
-      .catch((e) => sendResponse({ ok: false, error: e.message }));
+      target: { tabId },
+      func: () => {
+        if (typeof window._h1bScoutReextract === "function") {
+          window._h1bScoutReextract();
+          return true;
+        }
+        return false;
+      }
+    }).then(([result]) => {
+      if (result?.result) {
+        sendResponse({ ok: true });
+        return;
+      }
+
+      // Fallback: full injection if the script isn't there (e.g. first run or after navigation).
+      chrome.scripting.executeScript({
+        target: { tabId, allFrames: false },
+        files: [
+          "src/shared/normalization.js",
+          "src/content/signals-extractor.js",
+          "src/content/job-extractor.js"
+        ]
+      }).then(() => sendResponse({ ok: true }))
+        .catch((e) => sendResponse({ ok: false, error: e.message }));
+    }).catch((e) => sendResponse({ ok: false, error: e.message }));
     return true;
   }
 
