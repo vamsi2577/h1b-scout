@@ -88,7 +88,11 @@ function cleanWorkdayCompany(value) {
     .replace(/^Careers\s+at\s+/i, "")
     .replace(/ Careers$/i, "")
     .trim();
-  if (!cleaned || cleaned.includes(".myworkdayjobs.com") || cleaned.includes("/job/")) return "";
+  // Use anchored regex instead of substring check to avoid incomplete URL
+  // sanitization — ensures myworkdayjobs.com only matches as a hostname component.
+  if (!cleaned
+    || /(?:^|\.)myworkdayjobs\.com(?:\/|:|$)/i.test(cleaned)
+    || /(?:^|\/)job\//i.test(cleaned)) return "";
   return cleaned;
 }
 
@@ -124,7 +128,10 @@ test("cleanWorkdayCompany returns empty string for null input", () => {
 
 function cleanWorkdayTitle(value) {
   const cleaned = String(value || "").replace(/\s*-\s*.+ Careers$/i, "").trim();
-  if (!cleaned || cleaned.includes(".myworkdayjobs.com") || cleaned.includes("/job/")) return "";
+  // Anchored regex — same rationale as cleanWorkdayCompany above.
+  if (!cleaned
+    || /(?:^|\.)myworkdayjobs\.com(?:\/|:|$)/i.test(cleaned)
+    || /(?:^|\/)job\//i.test(cleaned)) return "";
   return cleaned;
 }
 
