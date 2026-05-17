@@ -171,7 +171,7 @@
     const volume = combined.lca.employerTotal || 0;
 
     const certScore   = Math.round(certRate * 0.6);
-    const volumeScore = Math.min(30, Math.round(10 * Math.log2(volume + 1)));
+    const volumeScore = Math.min(30, Math.round(10 * Math.log10(volume || 1) + 10));
 
     const years = [...(fiscalYears || [])].sort((a, b) => b - a);
     let trendScore = 5; // neutral default when only one year is available

@@ -41,9 +41,6 @@ const elements = {
   wageSummary: document.querySelector("#wageSummary"),
   dataAge: document.querySelector("#dataAge"),
   sponsorScore: document.querySelector("#sponsorScore"),
-  lookupDisplay: document.querySelector("#lookupDisplay"),
-  lookupCompanyText: document.querySelector("#lookupCompanyText"),
-  lookupTitleText: document.querySelector("#lookupTitleText"),
   editLookupBtn: document.querySelector("#editLookupBtn"),
   cancelEditBtn: document.querySelector("#cancelEditBtn"),
   suggestionsSection: document.querySelector("#suggestionsSection"),
@@ -289,11 +286,8 @@ function render(payload) {
   elements.jobHeading.title = currentContext.jobTitle || "";
   elements.companyInput.value = company;
   elements.titleInput.value = title;
-  elements.lookupCompanyText.textContent = company || "—";
-  elements.lookupTitleText.textContent = title || "—";
   // Collapse form back to display mode on fresh data load
   elements.form.hidden = true;
-  elements.lookupDisplay.hidden = false;
   elements.coverageLabel.textContent = lookup.coverageLabel;
   elements.confidenceLabel.textContent = lookup.confidence === "none" ? "No match" : `${lookup.confidence} match`;
 
@@ -351,7 +345,6 @@ elements.form.addEventListener("submit", async (event) => {
       render(payload);
       // Collapse form back to display mode after a successful lookup
       elements.form.hidden = true;
-      elements.lookupDisplay.hidden = false;
     }
   );
 });
@@ -359,13 +352,11 @@ elements.form.addEventListener("submit", async (event) => {
 // ── Edit lookup toggle ────────────────────────────────────────────────────────
 elements.editLookupBtn.addEventListener("click", () => {
   elements.form.hidden = false;
-  elements.lookupDisplay.hidden = true;
   elements.companyInput.focus();
 });
 
 elements.cancelEditBtn.addEventListener("click", () => {
   elements.form.hidden = true;
-  elements.lookupDisplay.hidden = false;
 });
 
 // ── Reload button ─────────────────────────────────────────────────────────────
