@@ -3,11 +3,12 @@
   const lastSent = { key: "" };
 
   function detectSource(hostname) {
-    if (hostname.includes("greenhouse.io")) return "greenhouse";
-    if (hostname.includes("workdayjobs.com") || hostname.includes("myworkdayjobs.com")) return "workday";
-    if (hostname.includes("lever.co")) return "lever";
-    if (hostname.includes("ashbyhq.com")) return "ashby";
-    if (hostname.includes("linkedin.com")) return "linkedin";
+    if (hostname === "boards.greenhouse.io" || hostname === "job-boards.greenhouse.io") return "greenhouse";
+    if (hostname.endsWith(".workdayjobs.com") || hostname.endsWith(".myworkdayjobs.com")) return "workday";
+    if (hostname === "jobs.lever.co") return "lever";
+    if (hostname === "jobs.ashbyhq.com") return "ashby";
+    if (hostname === "www.linkedin.com") return "linkedin";
+    if (hostname === "www.higheredjobs.com" || hostname === "higheredjobs.com") return "higheredjobs";
     return "unsupported";
   }
 
@@ -240,6 +241,13 @@
     };
   }
 
+  function higheredContext() {
+    return {
+      companyName: text(".institution") || text(".job-info .institution") || "",
+      jobTitle: text("#jobTitle") || ""
+    };
+  }
+
   function extractContext() {
     let context = {};
     if (source === "greenhouse") context = greenhouseContext();
@@ -247,6 +255,7 @@
     else if (source === "lever") context = leverContext();
     else if (source === "ashby") context = ashbyContext();
     else if (source === "linkedin") context = linkedinContext();
+    else if (source === "higheredjobs") context = higheredContext();
 
     const signals = (typeof VisaSponsor !== "undefined" && VisaSponsor.extractSignals)
       ? VisaSponsor.extractSignals()
@@ -270,6 +279,7 @@
     if (source === "lever" && location.pathname.split("/").filter(Boolean).length < 2) return;
     // Ashby: /company-name/uuid — same structure
     if (source === "ashby" && location.pathname.split("/").filter(Boolean).length < 2) return;
+    if (source === "higheredjobs" && !location.pathname.includes("/details.cfm")) return;
     // LinkedIn: two contexts where this script runs —
     //   1. Main frame at /jobs/* — guard on currentJobId or /jobs/view/ path.
     //   2. Preload iframe at /preload/ — the entire jobs UI lives here; guard on
