@@ -89,12 +89,32 @@
     const exact = titles[normalization.normalizeTitle(jobTitle)];
     if (exact) return exact;
 
+    const queryTokens = normalization.titleTokens(jobTitle);
+
+    // Title collapsed to zero meaningful tokens after stop-word removal (e.g. bare
+    // "Engineer", "Senior Engineer"). Jaccard on an empty set is undefined — skip
+    // fuzzy matching and fall back to the employer-level summary instead.
+    if (queryTokens.length === 0) return null;
+
+    // Scale the acceptance threshold by query token count:
+    //   1 token  → 0.9: the DB title must also be a single-token set with the same
+    //              word (score = 1.0). Prevents "DATA" matching "DATA ANALYST" (0.5).
+    //   2+ tokens → 0.45: existing behaviour, but a single shared word is not
+    //              sufficient — at least 2 tokens must overlap to guard against
+    //              e.g. "MACHINE LEARNING" spuriously matching "MACHINE VISION".
+    const threshold = queryTokens.length === 1 ? 0.9 : 0.45;
+    const querySet = new Set(queryTokens);
+
     let best = null;
     for (const [title, stats] of Object.entries(titles)) {
       const score = normalization.titleSimilarity(jobTitle, title);
-      if (score >= 0.45 && (!best || score > best.score)) {
-        best = { score, stats };
+      if (score < threshold) continue;
+      if (querySet.size >= 2) {
+        const dbTokens = normalization.titleTokens(title);
+        const overlap = dbTokens.filter((t) => querySet.has(t)).length;
+        if (overlap < 2) continue;
       }
+      if (!best || score > best.score) best = { score, stats };
     }
     return best?.stats || null;
   }
