@@ -255,7 +255,9 @@ function render(payload) {
   const title = truncate(currentContext.jobTitle || "");
 
   elements.companyHeading.textContent = company || "No company detected";
+  elements.companyHeading.title = currentContext.companyName || "";
   elements.jobHeading.textContent = title || "No job title detected";
+  elements.jobHeading.title = currentContext.jobTitle || "";
   elements.companyInput.value = company;
   elements.titleInput.value = title;
   elements.coverageLabel.textContent = lookup.coverageLabel;
