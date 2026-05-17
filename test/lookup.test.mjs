@@ -150,6 +150,77 @@ test("calculateCertRate returns rounded percentage", () => {
 // ── lookup.js: "low" confidence branch ───────────────────────────────────────
 // "ACME GLOBAL" (11 chars) is a substring of "ACME GLOBAL SOLUTIONS" (20 chars).
 // score = min(11,20)/max(11,20) = 0.55 which is ≤ 0.7, so findEmployer assigns "low".
+// ── computeSponsorScore ───────────────────────────────────────────────────────
+
+test("computeSponsorScore returns null when no LCA filing data", () => {
+  const result = VisaSponsor.lookupSponsorship(index, "Unknown Co", "Engineer");
+  assert.equal(VisaSponsor.computeSponsorScore(result), null);
+});
+
+test("computeSponsorScore grades A for high cert rate, high volume, trending up", () => {
+  const bigIndex = {
+    metadata: { fiscalYears: [2026, 2025], partialYear: 2026, coverageLabel: "FY2026 Q1 + FY2025" },
+    aliases: {},
+    employers: {
+      BIG: {
+        displayName: "Big Corp",
+        years: {
+          "2026": {
+            summary: { lca: { employerTotal: 80, titleTotal: 0, certified: 78, denied: 1, withdrawn: 1, avgWage: 150000, minWage: 140000, maxWage: 160000 }, perm: { employerTotal: 0, titleTotal: 0, certified: 0, denied: 0, withdrawn: 0 } },
+            titles: {}
+          },
+          "2025": {
+            summary: { lca: { employerTotal: 60, titleTotal: 0, certified: 58, denied: 1, withdrawn: 1, avgWage: 140000, minWage: 130000, maxWage: 150000 }, perm: { employerTotal: 0, titleTotal: 0, certified: 0, denied: 0, withdrawn: 0 } },
+            titles: {}
+          }
+        }
+      }
+    }
+  };
+  const result = VisaSponsor.lookupSponsorship(bigIndex, "Big Corp", "Engineer");
+  const score = VisaSponsor.computeSponsorScore(result);
+  assert.ok(score !== null);
+  assert.equal(score.grade, "A");
+  assert.ok(score.score >= 85);
+});
+
+test("computeSponsorScore grades D or F for low cert rate with few filings", () => {
+  // 2 certified out of 10 total = 20% cert rate, only 3 filings total → very low score
+  const badIndex = {
+    metadata: { fiscalYears: [2026, 2025], partialYear: 2026, coverageLabel: "FY2026 Q1 + FY2025" },
+    aliases: {},
+    employers: {
+      BAD: {
+        displayName: "Bad Corp",
+        years: {
+          "2026": {
+            summary: { lca: { employerTotal: 2, titleTotal: 0, certified: 0, denied: 1, withdrawn: 1, avgWage: null, minWage: null, maxWage: null }, perm: { employerTotal: 0, titleTotal: 0, certified: 0, denied: 0, withdrawn: 0 } },
+            titles: {}
+          },
+          "2025": {
+            summary: { lca: { employerTotal: 1, titleTotal: 0, certified: 0, denied: 1, withdrawn: 0, avgWage: null, minWage: null, maxWage: null }, perm: { employerTotal: 0, titleTotal: 0, certified: 0, denied: 0, withdrawn: 0 } },
+            titles: {}
+          }
+        }
+      }
+    }
+  };
+  const result = VisaSponsor.lookupSponsorship(badIndex, "Bad Corp", "Engineer");
+  const score = VisaSponsor.computeSponsorScore(result);
+  assert.ok(score !== null);
+  assert.ok(["D", "F"].includes(score.grade), `expected D or F but got ${score.grade}`);
+  assert.ok(score.score < 55);
+});
+
+test("computeSponsorScore exposes certRate and volume", () => {
+  const result = VisaSponsor.lookupSponsorship(index, "Acme Inc.", "Software Engineer");
+  const score = VisaSponsor.computeSponsorScore(result);
+  assert.ok(score !== null);
+  assert.ok(typeof score.certRate === "number");
+  assert.ok(typeof score.volume === "number");
+  assert.ok(score.volume > 0);
+});
+
 test("substring match returns low confidence when score <= 0.7", () => {
   const indexLow = {
     metadata: { fiscalYears: [2026], partialYear: 2026, coverageLabel: "FY2026" },

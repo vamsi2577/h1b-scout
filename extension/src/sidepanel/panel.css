@@ -507,6 +507,21 @@ dd {
   color: var(--accent-dark);
 }
 
+/* ── Sponsorship score badge ────────────────────────────────────────────────── */
+.sponsor-score {
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  padding: 5px 9px;
+}
+
+.sponsor-score.grade-A { background: #d1fae5; color: #064e3b; }
+.sponsor-score.grade-B { background: #dbeafe; color: #1e3a5f; }
+.sponsor-score.grade-C { background: #fef9c3; color: #713f12; }
+.sponsor-score.grade-D { background: #ffedd5; color: #7c2d12; }
+.sponsor-score.grade-F { background: #fee2e2; color: #7f1d1d; }
+
 /* Keyboard focus rings — accessibility */
 input:focus-visible,
 button:focus-visible,
