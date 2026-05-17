@@ -321,7 +321,14 @@ elements.reloadBtn.addEventListener("click", async () => {
   // Ask the service worker to re-run the content script on the current tab.
   // If it succeeds, the content script sends JOB_CONTEXT_FOUND → SW fires
   // CONTEXT_UPDATED → the listener below handles rendering and stops the spinner.
-  chrome.runtime.sendMessage({ type: "REEXTRACT", tabId: tab?.id });
+  // If it fails immediately (no tabId, scripting blocked), skip the 2 s wait
+  // and render the current context right away.
+  chrome.runtime.sendMessage({ type: "REEXTRACT", tabId: tab?.id }, (response) => {
+    if (response && !response.ok) {
+      clearTimeout(elements.reloadBtn._fallbackTimer);
+      loadPanelData().finally(() => elements.reloadBtn.classList.remove("spinning"));
+    }
+  });
 
   // Fallback: if CONTEXT_UPDATED doesn't arrive within 2 s (unsupported page,
   // scripting blocked, already-idle page with no DOM changes), pull whatever
@@ -342,6 +349,11 @@ chrome.runtime.onMessage.addListener((message) => {
     elements.reloadBtn.classList.remove("spinning");
     loadPanelData();
   }
+});
+
+// Clean up the fallback timer if the panel is closed while a reload is in flight.
+window.addEventListener("unload", () => {
+  clearTimeout(elements.reloadBtn._fallbackTimer);
 });
 
 // ── Settings drawer ───────────────────────────────────────────────────────────

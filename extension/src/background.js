@@ -418,11 +418,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return ctx || { companyName: "", jobTitle: "", source: "unsupported", url: "" };
     };
     getContext()
-      .then(context =>
-        refreshPanel(context).then(({ lookup, generatedAt, suggestions }) =>
-          sendResponse({ ok: true, context, lookup, dataAge: generatedAt, suggestions })
-        )
-      )
+      .then(async (context) => {
+        try {
+          const { lookup, generatedAt, suggestions } = await refreshPanel(context);
+          sendResponse({ ok: true, context, lookup, dataAge: generatedAt, suggestions });
+        } catch (error) {
+          // Include context so the panel can still display company/title even
+          // when shard loading fails (e.g. offline, bad custom URL).
+          sendResponse({ ok: false, error: error.message, context });
+        }
+      })
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
