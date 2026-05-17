@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "H1B Scout",
   "version": "0.2.1",
-  "description": "See H-1B and PERM sponsorship history for any employer - right from the job post. Supports Greenhouse, Workday, Lever, Ashby, LinkedIn, and embedded ATS boards.",
+  "description": "See H-1B and PERM sponsorship history for any employer - right from the job post. Supports Greenhouse, Workday, Lever, Ashby, LinkedIn, HigherEdJobs, and embedded ATS boards.",
   "permissions": ["sidePanel", "tabs", "storage", "scripting"],
   "host_permissions": [
     "<all_urls>"
@@ -22,7 +22,8 @@
         "https://jobs.lever.co/*",
         "https://jobs.ashbyhq.com/*",
         "https://www.linkedin.com/jobs/*",
-        "https://www.linkedin.com/preload/*"
+        "https://www.linkedin.com/preload/*",
+        "https://www.higheredjobs.com/*"
       ],
       "js": [
         "src/shared/normalization.js",
