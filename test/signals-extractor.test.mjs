@@ -125,6 +125,73 @@ test("detects 'clearance eligible'", () => {
   assert.ok(signals.some((s) => s.type === "clearance_preferred"));
 });
 
+// ── Sponsorship available (positive) ─────────────────────────────────────────
+
+test("detects 'visa sponsorship available'", () => {
+  const signals = withBody(
+    "Visa sponsorship is available for qualified candidates.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "sponsorship_available"));
+  assert.equal(signals.find((s) => s.type === "sponsorship_available").severity, "positive");
+});
+
+test("detects 'will sponsor' as sponsorship_available", () => {
+  const signals = withBody(
+    "We will sponsor H-1B visas for exceptional candidates.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "sponsorship_available"));
+});
+
+test("detects 'h1b sponsor' as sponsorship_available", () => {
+  const signals = withBody(
+    "This company is an H1B sponsor and welcomes international applicants.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "sponsorship_available"));
+});
+
+// ── OPT / CPT welcome (positive) ─────────────────────────────────────────────
+
+test("detects 'OPT welcome'", () => {
+  const signals = withBody("OPT welcome. CPT candidates may also apply.", extractSignals);
+  assert.ok(signals.some((s) => s.type === "opt_cpt_welcome"));
+  assert.equal(signals.find((s) => s.type === "opt_cpt_welcome").severity, "positive");
+});
+
+test("detects 'OPT/CPT' as opt_cpt_welcome", () => {
+  const signals = withBody(
+    "We accept OPT/CPT students for this internship position.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "opt_cpt_welcome"));
+});
+
+test("detects 'STEM OPT' as opt_cpt_welcome", () => {
+  const signals = withBody(
+    "Candidates on STEM OPT extension are encouraged to apply.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "opt_cpt_welcome"));
+});
+
+// ── E-Verify enrolled (info) ──────────────────────────────────────────────────
+
+test("detects 'E-Verify' as everify_enrolled", () => {
+  const signals = withBody(
+    "This employer participates in E-Verify to confirm work authorization.",
+    extractSignals
+  );
+  assert.ok(signals.some((s) => s.type === "everify_enrolled"));
+  assert.equal(signals.find((s) => s.type === "everify_enrolled").severity, "info");
+});
+
+test("detects 'everify' (no hyphen) as everify_enrolled", () => {
+  const signals = withBody("We use everify to confirm employment eligibility.", extractSignals);
+  assert.ok(signals.some((s) => s.type === "everify_enrolled"));
+});
+
 // ── No false positives ────────────────────────────────────────────────────────
 
 test("returns no signals for a clean job description", () => {

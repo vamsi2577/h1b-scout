@@ -209,7 +209,10 @@ function renderSignals(signals) {
     const chip = document.createElement("div");
     chip.className = `signal-chip ${signal.severity}`;
     const label = document.createElement("strong");
-    label.textContent = signal.severity === "high" ? `⚠ ${signal.label}` : `ℹ ${signal.label}`;
+    const icon = signal.severity === "positive" ? "✓"
+      : signal.severity === "info" ? "ℹ"
+      : "⚠";
+    label.textContent = `${icon} ${signal.label}`;
     chip.append(label);
     if (signal.quote) {
       const quote = document.createElement("span");
