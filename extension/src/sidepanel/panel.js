@@ -209,7 +209,10 @@ function renderSignals(signals) {
     const chip = document.createElement("div");
     chip.className = `signal-chip ${signal.severity}`;
     const label = document.createElement("strong");
-    label.textContent = signal.severity === "high" ? `⚠ ${signal.label}` : `ℹ ${signal.label}`;
+    const icon = signal.severity === "positive" ? "✓"
+      : signal.severity === "info" ? "ℹ"
+      : "⚠";
+    label.textContent = `${icon} ${signal.label}`;
     chip.append(label);
     if (signal.quote) {
       const quote = document.createElement("span");
@@ -252,7 +255,9 @@ function render(payload) {
   const title = truncate(currentContext.jobTitle || "");
 
   elements.companyHeading.textContent = company || "No company detected";
+  elements.companyHeading.title = currentContext.companyName || "";
   elements.jobHeading.textContent = title || "No job title detected";
+  elements.jobHeading.title = currentContext.jobTitle || "";
   elements.companyInput.value = company;
   elements.titleInput.value = title;
   elements.coverageLabel.textContent = lookup.coverageLabel;

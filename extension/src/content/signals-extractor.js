@@ -30,7 +30,10 @@
         /\bsponsorship\s+(is\s+)?(not|unavailable|not\s+available|not\s+provided|not\s+offered)\b/i,
         /\bsponsorship\b.{0,120}\bis\s+not\s+(available|provided|offered)\b/i,
         /\b(no|not\s+offer(ing)?|not\s+provid(ing)?)\b.{0,60}\bimmigration.{0,40}\bsupport\b/i,
-        /\bdoes\s+not\s+sponsor\b/i
+        /\bdoes\s+not\s+sponsor\b/i,
+        // "does/do not offer/provide/support sponsorship" — covers phrasings like
+        // "Toyota does not offer sponsorship of job applicants for employment-based visas"
+        /\b(do|does)\s+not\s+(offer|provide|support)\b.{0,50}\bsponsor(ship)?\b/i
       ]
     },
 
@@ -91,6 +94,46 @@
         /\bclearance\s+eligible\b/i,
         /\b(secret|top\s+secret|ts)\s+clearance\s+(preferred|eligible|a\s+plus)\b/i,
         /\b(preferred|bonus|nice)\s+.{0,40}\bclearance\b/i
+      ]
+    },
+
+    // ── Sponsorship available (positive) ─────────────────────────────────────
+    {
+      type: "sponsorship_available",
+      label: "Visa sponsorship available",
+      severity: "positive",
+      patterns: [
+        /\bvisa\s+sponsorship\s+(is\s+)?(available|provided|offered)\b/i,
+        /\bwill\s+sponsor\b/i,
+        /\bsponsorship\s+provided\b/i,
+        /\bwe\s+sponsor\b/i,
+        /\bh[-‑]?1b\s+sponsor(ship)?\b/i,
+        /\bh1b\s+sponsor(ship)?\b/i
+      ]
+    },
+
+    // ── OPT / CPT welcome (positive) ─────────────────────────────────────────
+    {
+      type: "opt_cpt_welcome",
+      label: "OPT/CPT welcome",
+      severity: "positive",
+      patterns: [
+        /\bOPT\s+welcome\b/i,
+        /\bCPT\s+welcome\b/i,
+        /\bOPT\s*\/\s*CPT\b/i,
+        /\bSTEM\s+OPT\b/i,
+        /\bOPT\s+eligible\b/i
+      ]
+    },
+
+    // ── E-Verify enrolled (info) ──────────────────────────────────────────────
+    {
+      type: "everify_enrolled",
+      label: "E-Verify participant",
+      severity: "info",
+      patterns: [
+        /\bE[-‑]Verify\b/i,
+        /\beverify\b/i
       ]
     }
   ];
