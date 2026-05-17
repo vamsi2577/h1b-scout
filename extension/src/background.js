@@ -98,6 +98,19 @@ async function refreshPanel(context) {
   return { lookup, generatedAt: shard.metadata?.generatedAt || null, suggestions };
 }
 
+// ── Telemetry helpers ─────────────────────────────────────────────────────────
+async function logExtractionFailure(context) {
+  try {
+    if (context.companyName || context.source === "unsupported" || !context.url) return;
+    const { extractionFailures = [] } = await chrome.storage.local.get("extractionFailures");
+    extractionFailures.push({ url: context.url, source: context.source, timestamp: Date.now() });
+    const trimmed = extractionFailures.slice(-20);
+    await chrome.storage.local.set({ extractionFailures: trimmed });
+  } catch {
+    // telemetry must never throw
+  }
+}
+
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -254,6 +267,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       signals: Array.isArray(message.signals) ? message.signals : []
     };
     latestContextByTab.set(tabId, context);
+    logExtractionFailure(context);
     if (!panelEnabledTabs.has(tabId)) {
       panelEnabledTabs.add(tabId);
       chrome.sidePanel.setOptions({ tabId, path: "src/sidepanel/panel.html", enabled: true });
