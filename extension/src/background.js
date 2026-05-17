@@ -98,6 +98,28 @@ async function refreshPanel(context) {
   return { lookup, generatedAt: shard.metadata?.generatedAt || null, suggestions };
 }
 
+// ── Telemetry helpers ─────────────────────────────────────────────────────────
+// In-memory set of recently logged URLs — prevents the same URL from being
+// written multiple times within a single SW session (e.g. on repeated panel
+// opens without navigating away).
+const recentlyLoggedUrls = new Set();
+
+async function logExtractionFailure(context) {
+  try {
+    if (context.companyName || context.source === "unsupported" || !context.url) return;
+    // Deduplicate: skip if this URL was already logged in the current SW session
+    if (recentlyLoggedUrls.has(context.url)) return;
+    recentlyLoggedUrls.add(context.url);
+
+    const { extractionFailures = [] } = await chrome.storage.local.get("extractionFailures");
+    extractionFailures.push({ url: context.url, source: context.source, timestamp: Date.now() });
+    const trimmed = extractionFailures.slice(-20);
+    await chrome.storage.local.set({ extractionFailures: trimmed });
+  } catch {
+    // telemetry must never throw
+  }
+}
+
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -254,6 +276,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       signals: Array.isArray(message.signals) ? message.signals : []
     };
     latestContextByTab.set(tabId, context);
+    logExtractionFailure(context);
     if (!panelEnabledTabs.has(tabId)) {
       panelEnabledTabs.add(tabId);
       chrome.sidePanel.setOptions({ tabId, path: "src/sidepanel/panel.html", enabled: true });
