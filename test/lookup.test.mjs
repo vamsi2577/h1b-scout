@@ -146,3 +146,19 @@ test("calculateCertRate returns rounded percentage", () => {
   assert.equal(VisaSponsor.calculateCertRate(1, 1, 1), 33);
   assert.equal(VisaSponsor.calculateCertRate(0, 0, 0), 0);
 });
+
+// ── normalization.js lines 80–86: "low" confidence branch ────────────────────
+// "ACME GLOBAL" (11 chars) is a substring of "ACME GLOBAL SOLUTIONS" (20 chars).
+// score = min(11,20)/max(11,20) = 0.55 which is ≤ 0.7, so findEmployer assigns "low".
+test("substring match returns low confidence when score <= 0.7", () => {
+  const indexLow = {
+    metadata: { fiscalYears: [2026], partialYear: 2026, coverageLabel: "FY2026" },
+    aliases: {},
+    employers: { "ACME GLOBAL SOLUTIONS": index.employers.ACME }
+  };
+  // "Acme Global" normalizes to "ACME GLOBAL" (11 chars).
+  // The key "ACME GLOBAL SOLUTIONS" (20 chars) contains "ACME GLOBAL".
+  // Ratio 11/20 = 0.55 → confidence "low" (≤ 0.7 threshold in findEmployer).
+  const result = VisaSponsor.lookupSponsorship(indexLow, "Acme Global", "Software Engineer");
+  assert.equal(result.confidence, "low");
+});

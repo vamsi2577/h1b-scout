@@ -151,3 +151,30 @@ test("captures the matched quote text", () => {
   assert.ok(sig?.quote, "should have a quote");
   assert.ok(sig.quote.toLowerCase().includes("sponsorship"));
 });
+
+// ── signals-extractor.js lines 99–103: getDescriptionText() selector path ────
+// The default mock returns null from querySelector, so all existing tests exercise
+// only the document.body.innerText fallback (line 103). This test overrides
+// querySelector to return a fake element for the first selector in
+// DESCRIPTION_SELECTORS ('[data-automation-id="jobPostingDescription"]'),
+// covering the selector-hit branch (lines 99–102).
+test("getDescriptionText uses selector element when querySelector returns a match", () => {
+  const originalQS = document.querySelector;
+  // The first selector tried is '[data-automation-id="jobPostingDescription"]' (Workday).
+  // Return a fake element only for that selector so the branch on line 101 is hit.
+  document.querySelector = (sel) => {
+    if (sel === '[data-automation-id="jobPostingDescription"]') {
+      return { innerText: "This position does not sponsor visas of any kind." };
+    }
+    return null;
+  };
+
+  try {
+    const signals = extractSignals();
+    // "does not sponsor" matches /\bdoes\s+not\s+sponsor\b/i → no_sponsorship
+    assert.ok(signals.some((s) => s.type === "no_sponsorship"),
+      "expected no_sponsorship signal from text read via selector element");
+  } finally {
+    document.querySelector = originalQS;
+  }
+});
