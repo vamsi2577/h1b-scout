@@ -3,10 +3,10 @@
   const lastSent = { key: "" };
 
   function detectSource(hostname) {
-    if (hostname === "boards.greenhouse.io" || hostname === "job-boards.greenhouse.io") return "greenhouse";
+    if (hostname === "greenhouse.io" || hostname.endsWith(".greenhouse.io")) return "greenhouse";
     if (hostname.endsWith(".workdayjobs.com") || hostname.endsWith(".myworkdayjobs.com")) return "workday";
-    if (hostname === "jobs.lever.co") return "lever";
-    if (hostname === "jobs.ashbyhq.com") return "ashby";
+    if (hostname === "lever.co" || hostname.endsWith(".lever.co")) return "lever";
+    if (hostname === "ashbyhq.com" || hostname.endsWith(".ashbyhq.com")) return "ashby";
     if (hostname === "www.linkedin.com") return "linkedin";
     if (hostname === "www.higheredjobs.com" || hostname === "higheredjobs.com") return "higheredjobs";
     return "unsupported";
@@ -242,9 +242,11 @@
   }
 
   function higheredContext() {
+    // DOM: <h1 id="jobtitle-header">…</h1>
+    //      <div class="job-inst"><a href="…">Institution Name</a></div>
     return {
-      companyName: text(".institution") || text(".job-info .institution") || "",
-      jobTitle: text("#jobTitle") || ""
+      companyName: text(".job-inst") || "",
+      jobTitle: text("#jobtitle-header") || ""
     };
   }
 
