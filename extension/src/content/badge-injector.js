@@ -108,12 +108,13 @@
 
   // ── Badge rendering ──────────────────────────────────────────────────────────
 
-  function createBadge(lca, confidence, isCardAppend) {
+  function createBadge(lca, confidence, isCardAppend, trend) {
     const el = document.createElement("span");
     el.className = `h1b-scout-badge h1b-scout-badge--${confidence}`;
     if (isCardAppend) el.classList.add("h1b-scout-badge--top-right");
+    const trendArrow = trend === "up" ? " ↑" : trend === "down" ? " ↓" : " →";
     el.title = `H-1B LCA filings — ${confidence} confidence match`;
-    el.textContent = `H-1B ${Number(lca).toLocaleString("en-US")} ✓`;
+    el.textContent = `H-1B ${Number(lca).toLocaleString("en-US")}${trendArrow}`;
     return el;
   }
 
@@ -167,7 +168,7 @@
         if (!result || result.confidence === "none" || !result.lca) continue;
         const target = getBadgeTarget(card);
         if (!target) continue;
-        
+
         const isCardAppend = (target === card);
         if (isCardAppend) {
           // Ensure container is relative for absolute positioning
@@ -176,7 +177,7 @@
           }
         }
 
-        target.append(createBadge(result.lca, result.confidence, isCardAppend));
+        target.append(createBadge(result.lca, result.confidence, isCardAppend, result.trend));
       }
     }
   }

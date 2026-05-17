@@ -308,7 +308,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const shard = await loadShard(letter);
         for (const name of names) {
           const lookup = VisaSponsor.lookupSponsorship(shard, name, "");
-          results[name] = { lca: lookup.combined.lca.employerTotal, confidence: lookup.confidence };
+          const years = lookup.fiscalYears || [];
+          const curr = lookup.byFiscalYear[years[0]]?.lca?.employerTotal ?? 0;
+          const prior = lookup.byFiscalYear[years[1]]?.lca?.employerTotal ?? 0;
+          const trend = VisaSponsor.calculateTrend(curr, prior);
+          results[name] = { lca: lookup.combined.lca.employerTotal, confidence: lookup.confidence, trend };
         }
       } catch {
         for (const name of names) results[name] = { lca: 0, confidence: "none" };
