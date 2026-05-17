@@ -147,7 +147,7 @@ test("calculateCertRate returns rounded percentage", () => {
   assert.equal(VisaSponsor.calculateCertRate(0, 0, 0), 0);
 });
 
-// ── normalization.js lines 80–86: "low" confidence branch ────────────────────
+// ── lookup.js: "low" confidence branch ───────────────────────────────────────
 // "ACME GLOBAL" (11 chars) is a substring of "ACME GLOBAL SOLUTIONS" (20 chars).
 // score = min(11,20)/max(11,20) = 0.55 which is ≤ 0.7, so findEmployer assigns "low".
 test("substring match returns low confidence when score <= 0.7", () => {
