@@ -34,7 +34,7 @@
     --tint-warn-border: #6b5010;
   }
 
-  /* Hardcoded light colours that can't be expressed as variables */
+  /* Dark-mode overrides that can't be expressed as variables */
   .icon-btn:hover,
   .icon-btn.active,
   .reload-btn:hover      { background: var(--tint-green); }

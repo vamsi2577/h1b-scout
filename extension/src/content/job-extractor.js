@@ -3,10 +3,10 @@
   const lastSent = { key: "" };
 
   function detectSource(hostname) {
-    if (hostname === "boards.greenhouse.io" || hostname === "job-boards.greenhouse.io") return "greenhouse";
+    if (hostname.endsWith("greenhouse.io")) return "greenhouse";
     if (hostname.endsWith(".workdayjobs.com") || hostname.endsWith(".myworkdayjobs.com")) return "workday";
-    if (hostname === "jobs.lever.co") return "lever";
-    if (hostname === "jobs.ashbyhq.com") return "ashby";
+    if (hostname.endsWith("lever.co")) return "lever";
+    if (hostname.endsWith("ashbyhq.com")) return "ashby";
     if (hostname === "www.linkedin.com") return "linkedin";
     if (hostname === "www.higheredjobs.com" || hostname === "higheredjobs.com") return "higheredjobs";
     return "unsupported";
