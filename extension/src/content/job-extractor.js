@@ -287,7 +287,9 @@
   }
 
   // Declare before the initial sendContext() calls so observer?.disconnect() is safe (undefined = no-op).
+  // observerTimer is co-located here for the same reason — both are used inside the MutationObserver below.
   let observer;
+  let observerTimer;
 
   sendContext();
   setTimeout(sendContext, 1000);
@@ -300,7 +302,6 @@
   // document.body to skip <head> style/script mutations from animations.
   // On all other platforms the observer disconnects after the first successful
   // send, so the broader root and no debounce are fine.
-  let observerTimer;
   const observeRoot = (source === "linkedin" && document.body) ? document.body : document.documentElement;
   observer = new MutationObserver(() => {
     if (source === "linkedin") {
