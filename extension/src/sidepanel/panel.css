@@ -428,3 +428,68 @@ dd {
   font-size: 11px;
   opacity: 0.75;
 }
+
+/* ── Stat card — trend + rate row ──────────────────────────────────────────── */
+.total-row {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+/* Override .stat-card strong which was display:block with margin */
+.total-row strong {
+  display: inline;
+  margin: 0;
+}
+
+.trend-arrow {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.trend-arrow.up   { color: #059669; }
+.trend-arrow.down { color: #dc2626; }
+.trend-arrow.flat { color: var(--muted); }
+
+.cert-rate {
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+}
+
+.cert-rate.good { background: #d1fae5; color: #064e3b; }
+.cert-rate.ok   { background: #fef9c3; color: #713f12; }
+.cert-rate.poor { background: #fee2e2; color: #7f1d1d; }
+
+/* ── Fuzzy company suggestions ─────────────────────────────────────────────── */
+.suggestions-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.suggestion-chip {
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  min-height: unset;
+  padding: 4px 12px;
+}
+
+.suggestion-chip:hover {
+  background: #e8f1ef;
+  color: var(--accent-dark);
+}

@@ -77,6 +77,11 @@
 
       <section id="status" class="status" hidden></section>
 
+      <section id="suggestionsSection" hidden>
+        <p class="suggestions-label">Did you mean?</p>
+        <div id="suggestionsList" class="suggestions-list"></div>
+      </section>
+
       <section class="coverage">
         <span id="coverageLabel">FY2026 Q1 + FY2025</span>
         <span id="confidenceLabel">No match</span>
@@ -90,7 +95,11 @@
       <section class="stats-grid" aria-label="Combined sponsorship statistics">
         <article class="stat-card">
           <h2>H-1B LCA</h2>
-          <strong id="lcaTotal">0</strong>
+          <div class="total-row">
+            <strong id="lcaTotal">0</strong>
+            <span id="lcaTrend" class="trend-arrow" aria-label=""></span>
+            <span id="lcaRate" class="cert-rate"></span>
+          </div>
           <p id="lcaTitleTotal">0 for this title</p>
           <dl>
             <div><dt>Certified</dt><dd id="lcaCertified">0</dd></div>
@@ -101,7 +110,11 @@
 
         <article class="stat-card">
           <h2>PERM</h2>
-          <strong id="permTotal">0</strong>
+          <div class="total-row">
+            <strong id="permTotal">0</strong>
+            <span id="permTrend" class="trend-arrow" aria-label=""></span>
+            <span id="permRate" class="cert-rate"></span>
+          </div>
           <p id="permTitleTotal">0 for this title</p>
           <dl>
             <div><dt>Certified</dt><dd id="permCertified">0</dd></div>

@@ -1,0 +1,39 @@
+.h1b-scout-badge {
+  border-radius: 10px;
+  display: inline-block;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 6px;
+  padding: 2px 7px;
+  vertical-align: middle;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.h1b-scout-badge--top-right {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  margin-left: 0;
+  z-index: 10;
+}
+
+.h1b-scout-badge--high {
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  color: #064e3b;
+}
+
+.h1b-scout-badge--medium {
+  background: #fef9c3;
+  border: 1px solid #fcd34d;
+  color: #713f12;
+}
+
+.h1b-scout-badge--low {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #7f1d1d;
+}

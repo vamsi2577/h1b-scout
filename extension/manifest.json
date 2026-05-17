@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "H1B Scout",
-  "version": "0.2.0",
-  "description": "See H-1B and PERM sponsorship history for any employer — right from the job post. Supports Greenhouse, Workday, Lever, Ashby, LinkedIn, and embedded ATS boards.",
+  "version": "0.2.1",
+  "description": "See H-1B and PERM sponsorship history for any employer - right from the job post. Supports Greenhouse, Workday, Lever, Ashby, LinkedIn, and embedded ATS boards.",
   "permissions": ["sidePanel", "tabs", "storage", "scripting"],
   "host_permissions": [
     "<all_urls>"
@@ -16,7 +16,6 @@
   "content_scripts": [
     {
       "matches": [
-        "https://boards.greenhouse.io/*",
         "https://*.greenhouse.io/*",
         "https://*.myworkdayjobs.com/*",
         "https://*.workdayjobs.com/*",
@@ -30,6 +29,20 @@
         "src/content/signals-extractor.js",
         "src/content/job-extractor.js"
       ],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://www.linkedin.com/jobs/search/*",
+        "https://www.linkedin.com/jobs/collections/*",
+        "https://www.linkedin.com/jobs/recommended/*",
+        "https://*.greenhouse.io/*"
+      ],
+      "js": [
+        "src/content/badge-injector.js"
+      ],
+      "css": ["src/content/badge.css"],
       "run_at": "document_idle",
       "all_frames": true
     }

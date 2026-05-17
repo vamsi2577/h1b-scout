@@ -274,7 +274,9 @@
     }
     const context = extractContext();
     if (!context.companyName && !context.jobTitle) return;
-    const key = `${context.companyName}|${context.jobTitle}|${context.url}`;
+    // Include signal count so a retry that finds new signals (e.g. description
+    // loaded after first send) isn't blocked by the deduplication check.
+    const key = `${context.companyName}|${context.jobTitle}|${context.url}|${context.signals.length}`;
     if (key === lastSent.key) return;
     lastSent.key = key;
     chrome.runtime.sendMessage(context).catch(() => {});
