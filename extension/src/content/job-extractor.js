@@ -242,9 +242,10 @@
   }
 
   function higheredContext() {
+    const jsonLd = fromJsonLd();
     return {
-      companyName: text(".institution") || text(".job-info .institution") || "",
-      jobTitle: text("#jobTitle") || ""
+      companyName: jsonLd.companyName || text(".institution") || text(".job-info .institution") || "",
+      jobTitle: jsonLd.jobTitle || text("#jobTitle") || ""
     };
   }
 

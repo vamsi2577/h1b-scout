@@ -23,7 +23,7 @@
         "https://jobs.ashbyhq.com/*",
         "https://www.linkedin.com/jobs/*",
         "https://www.linkedin.com/preload/*",
-        "https://www.higheredjobs.com/*"
+        "https://*.higheredjobs.com/*"
       ],
       "js": [
         "src/shared/normalization.js",

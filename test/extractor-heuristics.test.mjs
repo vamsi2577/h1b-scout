@@ -248,11 +248,11 @@ test("fromJsonLd returns empty object when no scripts match", () => {
 
 // ── HigherEdJobs ─────────────────────────────────────────────────────────────
 
-function higheredContext(doc) {
+function higheredContext(doc, jsonLd = {}) {
   const text = (selector) => doc.querySelector(selector)?.textContent?.trim() || "";
   return {
-    companyName: text(".institution") || text(".job-info .institution") || "",
-    jobTitle: text("#jobTitle") || ""
+    companyName: jsonLd.companyName || text(".institution") || text(".job-info .institution") || "",
+    jobTitle: jsonLd.jobTitle || text("#jobTitle") || ""
   };
 }
 
@@ -279,4 +279,18 @@ test("higheredContext falls back to .job-info .institution", () => {
   };
   const result = higheredContext(mockDoc);
   assert.equal(result.companyName, "Nova Southeastern University");
+});
+
+test("higheredContext prefers JSON-LD if present", () => {
+  const mockDoc = {
+    querySelector: (selector) => {
+      if (selector === "#jobTitle") return { textContent: "DOM Title" };
+      if (selector === ".institution") return { textContent: "DOM Institution" };
+      return null;
+    }
+  };
+  const jsonLd = { jobTitle: "LD Title", companyName: "LD Company" };
+  const result = higheredContext(mockDoc, jsonLd);
+  assert.equal(result.jobTitle, "LD Title");
+  assert.equal(result.companyName, "LD Company");
 });
