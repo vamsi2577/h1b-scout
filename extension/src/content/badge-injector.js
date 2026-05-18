@@ -8,14 +8,20 @@
     path.startsWith("/jobs/recommended")
   );
   
-  // Greenhouse: includes boards and search pages. 
+  // Greenhouse: includes boards and search pages.
   // Exclude actual application pages (usually /jobs/123456)
   const isGreenhouse = hostname.includes("greenhouse.io") && !/\/jobs\/\d+/.test(path);
 
-  if (!isLinkedIn && !isGreenhouse) return;
+  // HigherEdJobs search pages — /admin/search.cfm and similar listing paths.
+  // Exclude detail pages (/details.cfm) which are handled by job-extractor instead.
+  const isHigherEdJobs = (hostname === "www.higheredjobs.com" || hostname === "higheredjobs.com")
+    && !path.includes("/details.cfm");
+
+  if (!isLinkedIn && !isGreenhouse && !isHigherEdJobs) return;
 
   const BADGE_ATTR = "data-h1b-badge";
   let scanTimeout;
+  let coldStartRetried = false;
 
   // ── DOM helpers ──────────────────────────────────────────────────────────────
 
@@ -31,14 +37,16 @@
     if (isGreenhouse) {
       // my.greenhouse.io search results use data-provides="search-result".
       // boards.greenhouse.io use .opening / .job-post / data-gh='job'.
-      // The old class-based selectors ([class*='border-gray-00'], div:has(>a[href*="/jobs/"]))
-      // were too broad and couldn't reliably extract company names via innerText lines.
       return document.querySelectorAll(`
         [data-provides="search-result"]:not([${BADGE_ATTR}]),
         .opening:not([${BADGE_ATTR}]),
         .job-post:not([${BADGE_ATTR}]),
         [data-gh='job']:not([${BADGE_ATTR}])
       `.trim());
+    }
+    if (isHigherEdJobs) {
+      // Verified against live DOM: each listing is a div.row.record
+      return document.querySelectorAll(`.row.record:not([${BADGE_ATTR}])`);
     }
     return [];
   }
@@ -78,6 +86,19 @@
         ""
       );
     }
+    if (isHigherEdJobs) {
+      // Verified against live DOM: institution name is a bare text node after the
+      // first <br> inside .col-sm-7. It is not wrapped in an element.
+      const col = card.querySelector(".col-sm-7");
+      if (!col) return "";
+      for (const node of col.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const t = node.textContent.trim();
+          if (t) return t;
+        }
+      }
+      return "";
+    }
     return "";
   }
 
@@ -102,6 +123,24 @@
         card.querySelector("p, span") ||
         card
       );
+    }
+    if (isHigherEdJobs) {
+      // Wrap the bare institution text node in a <span> on first call so the
+      // badge has an inline element to append to. Re-use existing span on retry.
+      const col = card.querySelector(".col-sm-7");
+      if (!col) return null;
+      const existing = col.querySelector(".hej-inst-name");
+      if (existing) return existing;
+      for (const node of col.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+          const span = document.createElement("span");
+          span.className = "hej-inst-name";
+          span.textContent = node.textContent;
+          node.replaceWith(span);
+          return span;
+        }
+      }
+      return null;
     }
     return null;
   }
@@ -154,6 +193,21 @@
         });
       });
     } catch { /* service worker sleeping or quota — skip silently */ }
+
+    // Cold-start detection: if every company returned "none", the SW was likely
+    // waking up and failed to load shards. Reset attrs and retry once after 4s.
+    const allNone = companyToCards.size > 2 &&
+      [...companyToCards.keys()].every(n => !results[n] || results[n].confidence === "none");
+    if (allNone && !coldStartRetried) {
+      coldStartRetried = true;
+      setTimeout(() => {
+        for (const cards of companyToCards.values()) {
+          for (const card of cards) card.removeAttribute(BADGE_ATTR);
+        }
+        scanAndBadge();
+      }, 4000);
+      return;
+    }
 
     for (const [name, groupCards] of companyToCards.entries()) {
       const result = results[name];

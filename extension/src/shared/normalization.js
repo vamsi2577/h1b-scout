@@ -77,23 +77,13 @@
     return overlap / Math.max(leftTokens.size, rightTokens.size);
   }
 
-  function confidenceForEmployer(query, matched) {
-    const normalizedQuery = normalizeEmployer(query);
-    const normalizedMatch = normalizeEmployer(matched);
-    if (!normalizedQuery || !normalizedMatch) return "none";
-    if (normalizedQuery === normalizedMatch) return "high";
-    if (normalizedQuery.includes(normalizedMatch) || normalizedMatch.includes(normalizedQuery)) return "medium";
-    return "low";
-  }
-
   root.VisaSponsor = {
     ...(root.VisaSponsor || {}),
     normalizeText,
     normalizeEmployer,
     normalizeTitle,
     titleTokens,
-    titleSimilarity,
-    confidenceForEmployer
+    titleSimilarity
   };
 
   if (typeof module !== "undefined" && module.exports) {

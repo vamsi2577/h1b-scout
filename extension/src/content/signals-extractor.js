@@ -164,16 +164,12 @@
     return document.body?.innerText?.slice(0, 10000) || "";
   }
 
-  // Extract the full sentence(s) surrounding a regex match so the user sees
-  // the complete requirement, e.g. "Must have Active DoD secret clearance
-  // verified in DISS. Top Secret preferred." rather than just the matched token.
+  // Returns up to 2 full sentences (or 400 chars) around a match so the user
+  // sees complete context, e.g. a trailing qualifier on the next sentence.
   function extractSentenceContext(text, matchIndex, matchLength) {
-    // Walk backward to the nearest sentence boundary
     let start = matchIndex;
     while (start > 0 && !/[.!?\n]/.test(text[start - 1])) start--;
 
-    // Walk forward through up to 2 sentence ends (or 400 chars max) so that
-    // a trailing qualifier on the next sentence ("Top Secret preferred.") is included.
     let end = matchIndex + matchLength;
     let sentenceEnds = 0;
     while (end < text.length && sentenceEnds < 2 && end - start < 400) {

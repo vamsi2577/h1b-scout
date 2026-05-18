@@ -29,6 +29,13 @@
       "js": [
         "src/shared/normalization.js",
         "src/content/signals-extractor.js",
+        "src/content/extractors/common.js",
+        "src/content/extractors/greenhouse.js",
+        "src/content/extractors/workday.js",
+        "src/content/extractors/lever.js",
+        "src/content/extractors/ashby.js",
+        "src/content/extractors/linkedin.js",
+        "src/content/extractors/higheredjobs.js",
         "src/content/job-extractor.js"
       ],
       "run_at": "document_idle",
@@ -40,7 +47,8 @@
         "https://www.linkedin.com/jobs/collections/*",
         "https://www.linkedin.com/jobs/recommended/*",
         "https://*.greenhouse.io/*",
-        "https://www.higheredjobs.com/*"
+        "https://www.higheredjobs.com/*",
+        "https://higheredjobs.com/*"
       ],
       "js": [
         "src/content/badge-injector.js"
