@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 globalThis.VisaSponsor = {};
 await import("../extension/src/shared/normalization.js");
 await import("../extension/src/shared/lookup.js");
+await import("../extension/src/shared/scoring.js");
 
 const index = {
   metadata: {
