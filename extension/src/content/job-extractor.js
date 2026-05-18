@@ -111,14 +111,9 @@
     return cleaned;
   }
 
-  // Extract the company slug from the Greenhouse board URL path.
-  // Both board formats use /company-slug/jobs/id:
-  //   boards.greenhouse.io/kepora/jobs/4250591009
-  //   job-boards.greenhouse.io/kepora/jobs/4250591009
-  // Used as a last-resort fallback when the DOM carries no company name.
+  // Extract company from Greenhouse board path: /company-slug/jobs/id
   function greenhouseCompanyFromPath(pathname = location.pathname) {
     const parts = pathname.split("/").filter(Boolean);
-    // Greenhouse boards use /company-slug/jobs/job-id
     if (parts.length >= 3 && parts[1] === "jobs") {
       return titleCaseSlug(parts[0]);
     }
@@ -142,8 +137,6 @@
         text(".company-name") ||
         meta("og:site_name") ||
         document.title.split("|").at(-1)?.trim() ||
-        // Last resort: extract company slug from the URL path itself
-        // e.g. job-boards.greenhouse.io/kepora/jobs/... → "Kepora"
         greenhouseCompanyFromPath() ||
         "",
       jobTitle:

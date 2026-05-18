@@ -57,36 +57,38 @@ const elements = {
 let currentContext = {};
 
 // ── Formatters ────────────────────────────────────────────────────────────────
-function formatNumber(value) {
-  return new Intl.NumberFormat("en-US").format(value || 0);
-}
+const format = {
+  number(value) {
+    return new Intl.NumberFormat("en-US").format(value || 0);
+  },
 
-function formatMoney(value) {
-  if (!value) return null;
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
-}
+  money(value) {
+    if (!value) return null;
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+  },
 
-function formatDataAge(isoString) {
-  if (!isoString) return "";
-  const generated = new Date(isoString);
-  if (Number.isNaN(generated.getTime())) return "";
-  const diffMs = Date.now() - generated.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays < 1) return "Index updated today";
-  if (diffDays === 1) return "Index updated 1 day ago";
-  if (diffDays < 30) return `Index updated ${diffDays} days ago`;
-  const diffMonths = Math.floor(diffDays / 30);
-  if (diffMonths === 1) return "Index updated 1 month ago";
-  if (diffMonths < 12) return `Index updated ${diffMonths} months ago`;
-  const diffYears = Math.floor(diffMonths / 12);
-  return `Index updated ${diffYears === 1 ? "1 year" : `${diffYears} years`} ago`;
-}
+  dataAge(isoString) {
+    if (!isoString) return "";
+    const generated = new Date(isoString);
+    if (Number.isNaN(generated.getTime())) return "";
+    const diffMs = Date.now() - generated.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays < 1) return "Index updated today";
+    if (diffDays === 1) return "Index updated 1 day ago";
+    if (diffDays < 30) return `Index updated ${diffDays} days ago`;
+    const diffMonths = Math.floor(diffDays / 30);
+    if (diffMonths === 1) return "Index updated 1 month ago";
+    if (diffMonths < 12) return `Index updated ${diffMonths} months ago`;
+    const diffYears = Math.floor(diffMonths / 12);
+    return `Index updated ${diffYears === 1 ? "1 year" : `${diffYears} years`} ago`;
+  },
 
-function truncate(str, length = 200) {
-  if (!str) return "";
-  if (str.length <= length) return str;
-  return str.slice(0, length) + "…";
-}
+  truncate(str, length = 200) {
+    if (!str) return "";
+    if (str.length <= length) return str;
+    return str.slice(0, length) + "…";
+  }
+};
 
 // ── Status bar ────────────────────────────────────────────────────────────────
 function setStatus(message, type = "warning") {
@@ -97,21 +99,21 @@ function setStatus(message, type = "warning") {
 
 // ── Stats rendering ───────────────────────────────────────────────────────────
 function renderStats(stats) {
-  elements.lcaTotal.textContent = formatNumber(stats.lca.employerTotal);
+  elements.lcaTotal.textContent = format.number(stats.lca.employerTotal);
   elements.lcaTitleTotal.textContent = stats.lca.titleTotal > 0
-    ? `${formatNumber(stats.lca.titleTotal)} for this title`
+    ? `${format.number(stats.lca.titleTotal)} for this title`
     : stats.lca.employerTotal > 0 ? "title not matched" : "0 for this title";
-  elements.lcaCertified.textContent = formatNumber(stats.lca.certified);
-  elements.lcaDenied.textContent = formatNumber(stats.lca.denied);
-  elements.lcaWithdrawn.textContent = formatNumber(stats.lca.withdrawn);
+  elements.lcaCertified.textContent = format.number(stats.lca.certified);
+  elements.lcaDenied.textContent = format.number(stats.lca.denied);
+  elements.lcaWithdrawn.textContent = format.number(stats.lca.withdrawn);
 
-  elements.permTotal.textContent = formatNumber(stats.perm.employerTotal);
+  elements.permTotal.textContent = format.number(stats.perm.employerTotal);
   elements.permTitleTotal.textContent = stats.perm.titleTotal > 0
-    ? `${formatNumber(stats.perm.titleTotal)} for this title`
+    ? `${format.number(stats.perm.titleTotal)} for this title`
     : stats.perm.employerTotal > 0 ? "title not matched" : "0 for this title";
-  elements.permCertified.textContent = formatNumber(stats.perm.certified);
-  elements.permDenied.textContent = formatNumber(stats.perm.denied);
-  elements.permWithdrawn.textContent = formatNumber(stats.perm.withdrawn);
+  elements.permCertified.textContent = format.number(stats.perm.certified);
+  elements.permDenied.textContent = format.number(stats.perm.denied);
+  elements.permWithdrawn.textContent = format.number(stats.perm.withdrawn);
 
   // Collapse PERM breakdown when all zero
   const permAllZero = !stats.perm.certified && !stats.perm.denied && !stats.perm.withdrawn;
@@ -127,14 +129,14 @@ function renderStats(stats) {
     el.textContent = `${rate}% approved`;
     el.className = `cert-rate ${rate >= 90 ? "good" : rate >= 70 ? "ok" : "poor"}`;
     const sampleWarning = total < 5 ? " (Low sample size)" : "";
-    el.title = `${rate}% certification rate (${formatNumber(certified)} certified of ${formatNumber(total)})${sampleWarning}`;
+    el.title = `${rate}% certification rate (${format.number(certified)} certified of ${format.number(total)})${sampleWarning}`;
   }
   setCertRate(elements.lcaRate, stats.lca.certified, stats.lca.denied, stats.lca.withdrawn);
   setCertRate(elements.permRate, stats.perm.certified, stats.perm.denied, stats.perm.withdrawn);
 
-  const min = formatMoney(stats.lca.minWage);
-  const max = formatMoney(stats.lca.maxWage);
-  const avg = formatMoney(stats.lca.avgWage);
+  const min = format.money(stats.lca.minWage);
+  const max = format.money(stats.lca.maxWage);
+  const avg = format.money(stats.lca.avgWage);
   elements.wageSummary.textContent = min && max
     ? `Range ${min} to ${max}${avg ? `, average ${avg}` : ""}.`
     : "No wage data in the current match.";
@@ -149,7 +151,7 @@ function renderTrend(lookup) {
   const prevData   = lookup.byFiscalYear[String(prev)]   || VisaSponsor.emptyStats();
 
   function setArrow(el, curr, prior) {
-    const label = prior ? `${prior > 0 ? formatNumber(prior) : "0"} in FY${prev}` : `no data in FY${prev}`;
+    const label = prior ? `${prior > 0 ? format.number(prior) : "0"} in FY${prev}` : `no data in FY${prev}`;
     if (!prior && !curr) { clearArrow(el); return; }
     
     const trend = VisaSponsor.calculateTrend(curr, prior);
@@ -198,9 +200,9 @@ function renderYearBreakdown(lookup) {
     const span1 = document.createElement("span");
     const lcaDW = (stats.lca.denied || 0) + (stats.lca.withdrawn || 0);
     const permDW = (stats.perm.denied || 0) + (stats.perm.withdrawn || 0);
-    span1.textContent = `${formatNumber(stats.lca.employerTotal)} LCA${lcaDW ? `, Denied/withdrawn: ${formatNumber(lcaDW)}` : ""} | ${formatNumber(stats.perm.employerTotal)} PERM${permDW ? `, Denied/withdrawn: ${formatNumber(permDW)}` : ""}`;
+    span1.textContent = `${format.number(stats.lca.employerTotal)} LCA${lcaDW ? `, Denied/withdrawn: ${format.number(lcaDW)}` : ""} | ${format.number(stats.perm.employerTotal)} PERM${permDW ? `, Denied/withdrawn: ${format.number(permDW)}` : ""}`;
     const span2 = document.createElement("span");
-    span2.textContent = `${formatNumber(stats.lca.titleTotal)} LCA and ${formatNumber(stats.perm.titleTotal)} PERM matched this title`;
+    span2.textContent = `${format.number(stats.lca.titleTotal)} LCA and ${format.number(stats.perm.titleTotal)} PERM matched this title`;
     row.replaceChildren(strong, span1, span2);
     elements.yearBreakdown.append(row);
   }
@@ -232,7 +234,7 @@ function renderSignals(signals) {
     chip.append(label);
     if (signal.quote) {
       const quote = document.createElement("span");
-      const truncatedQuote = truncate(signal.quote);
+      const truncatedQuote = format.truncate(signal.quote);
       quote.textContent = `"${truncatedQuote}"`;
       chip.append(quote);
       chip.classList.add("clickable");
@@ -250,7 +252,7 @@ function renderSponsorScore(lookup) {
   el.hidden = false;
   el.textContent = `H-1B Grade: ${result.grade}`;
   el.className = `grade-badge grade-${result.grade}`;
-  el.title = `Score: ${result.score}/100 · ${result.certRate}% approval · ${formatNumber(result.volume)} LCA filings`;
+  el.title = `Score: ${result.score}/100 · ${result.certRate}% approval · ${format.number(result.volume)} LCA filings`;
 }
 
 function renderLinks(links) {
@@ -277,8 +279,8 @@ function render(payload) {
 
   currentContext = payload.context || {};
   const lookup = payload.lookup;
-  const company = truncate(currentContext.companyName || "");
-  const title = truncate(currentContext.jobTitle || "");
+  const company = format.truncate(currentContext.companyName || "");
+  const title = format.truncate(currentContext.jobTitle || "");
 
   elements.companyHeading.textContent = company || "No company detected";
   elements.companyHeading.title = currentContext.companyName || "";
@@ -314,7 +316,7 @@ function render(payload) {
   renderSponsorScore(lookup);
   renderYearBreakdown(lookup);
   renderLinks(lookup.sourceLinks);
-  elements.dataAge.textContent = formatDataAge(payload.dataAge);
+  elements.dataAge.textContent = format.dataAge(payload.dataAge);
 }
 
 function loadPanelData() {
