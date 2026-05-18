@@ -36,11 +36,9 @@
     if (source === "lever" && location.pathname.split("/").filter(Boolean).length < 2) return;
     if (source === "ashby" && location.pathname.split("/").filter(Boolean).length < 2) return;
     if (source === "higheredjobs" && !location.pathname.includes("/details.cfm")) return;
-    // hiringcafe: allow on /job/[id] full-view pages AND on search pages when
-    // the Chakra inline panel (role="dialog") is open after clicking a card.
-    if (source === "hiringcafe"
-        && !location.pathname.startsWith("/job/")
-        && !document.querySelector('[role="dialog"].chakra-modal__content')) return;
+    // hiringcafe: no route guard needed — the extractor returns empty strings
+    // when nothing is selected (search page, no card clicked, no modal open),
+    // and sendContext() already bails on empty companyName + jobTitle.
     if (source === "linkedin") {
       if (location.pathname.startsWith("/jobs/")) {
         const currentJobId = new URLSearchParams(location.search).get("currentJobId");
