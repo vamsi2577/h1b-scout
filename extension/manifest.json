@@ -40,7 +40,8 @@
         "https://www.linkedin.com/jobs/collections/*",
         "https://www.linkedin.com/jobs/recommended/*",
         "https://*.greenhouse.io/*",
-        "https://www.higheredjobs.com/*"
+        "https://www.higheredjobs.com/*",
+        "https://higheredjobs.com/*"
       ],
       "js": [
         "src/content/badge-injector.js"
