@@ -55,7 +55,7 @@
     const card = e.target.closest("div.relative.bg-white.rounded-xl");
     if (!card) return;
 
-    const jobTitle    = card.querySelector("span.font-bold.line-clamp-2")?.textContent?.trim() || "";
+    const jobTitle    = card.querySelector("span.font-bold.line-clamp-2, span.font-bold.line-clamp-3, span.font-bold.text-start")?.textContent?.trim() || "";
     const companyName = card.querySelector(".line-clamp-3.font-light span.font-bold")?.textContent?.trim() || "";
 
     if (!jobTitle && !companyName) return;
