@@ -511,11 +511,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           if (years.length >= 2) {
             const curr = lookup.byFiscalYear[years[0]]?.lca?.employerTotal ?? 0;
             const prior = lookup.byFiscalYear[years[1]]?.lca?.employerTotal ?? 0;
-            trend = VisaSponsor.calculateTrend(curr, prior);
+            const diff = prior === 0 ? (curr > 0 ? 1 : 0) : (curr - prior) / prior;
+            trend = diff > 0.1 ? "up" : diff < -0.1 ? "down" : "flat";
           }
           results[name] = { lca: lookup.combined.lca.employerTotal, confidence: lookup.confidence, trend };
         }
-      } catch {
+      } catch (err) {
+        console.error(`H1B Scout: GET_BADGES failed for shard ${letter}:`, err);
         for (const name of names) results[name] = { lca: 0, confidence: "none" };
       }
     })).then(() => sendResponse({ ok: true, results }));
