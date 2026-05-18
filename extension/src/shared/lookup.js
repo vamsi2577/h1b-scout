@@ -28,31 +28,36 @@
   }
 
   function addStats(target, source) {
-    const previousAverage = target.lca.avgWage;
-    const previousWeight = target.lca.employerTotal;
-    const sourceAverage = source?.lca?.avgWage;
-    const sourceWeight = source?.lca?.employerTotal || 0;
+    if (!source) return target;
 
-    for (const program of ["lca", "perm"]) {
-      target[program].employerTotal += source?.[program]?.employerTotal || 0;
-      target[program].titleTotal += source?.[program]?.titleTotal || 0;
-      target[program].certified += source?.[program]?.certified || 0;
-      target[program].denied += source?.[program]?.denied || 0;
-      target[program].withdrawn += source?.[program]?.withdrawn || 0;
+    // Sum programs (LCA, PERM)
+    for (const p of ["lca", "perm"]) {
+      target[p].employerTotal += source[p].employerTotal || 0;
+      target[p].titleTotal += source[p].titleTotal || 0;
+      target[p].certified += source[p].certified || 0;
+      target[p].denied += source[p].denied || 0;
+      target[p].withdrawn += source[p].withdrawn || 0;
     }
 
-    const wages = [target.lca.minWage, target.lca.maxWage, source?.lca?.minWage, source?.lca?.maxWage]
-      .filter((value) => typeof value === "number" && Number.isFinite(value));
+    // Merge wages
+    const wages = [target.lca.minWage, target.lca.maxWage, source.lca.minWage, source.lca.maxWage]
+      .filter((v) => typeof v === "number" && Number.isFinite(v));
     target.lca.minWage = wages.length ? Math.min(...wages) : null;
     target.lca.maxWage = wages.length ? Math.max(...wages) : null;
 
-    const weightedWages = [];
-    if (previousAverage != null && previousWeight) weightedWages.push([previousAverage, previousWeight]);
-    if (sourceAverage != null && sourceWeight) weightedWages.push([sourceAverage, sourceWeight]);
-    const totalWeight = weightedWages.reduce((sum, [, weight]) => sum + weight, 0);
-    target.lca.avgWage = totalWeight
-      ? Math.round(weightedWages.reduce((sum, [wage, weight]) => sum + wage * weight, 0) / totalWeight)
-      : null;
+    // Weighted average wage
+    const prevWeight = target.lca.employerTotal - (source.lca.employerTotal || 0);
+    const currWeight = source.lca.employerTotal || 0;
+    const prevAvg = target.lca.avgWage;
+    const currAvg = source.lca.avgWage;
+
+    if (currAvg != null && currWeight > 0) {
+      if (prevAvg != null && prevWeight > 0) {
+        target.lca.avgWage = Math.round((prevAvg * prevWeight + currAvg * currWeight) / (prevWeight + currWeight));
+      } else {
+        target.lca.avgWage = currAvg;
+      }
+    }
     return target;
   }
 
