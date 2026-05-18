@@ -1,4 +1,4 @@
-importScripts("shared/normalization.js", "shared/lookup.js", "shared/local-db.js");
+importScripts("shared/normalization.js", "shared/lookup.js", "shared/local-db.js", "shared/scoring.js");
 
 // ── Data source ─────────────────────────────────────────────────────────────
 // Base URL for the per-letter shard files on GitHub Releases.
@@ -515,7 +515,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
           results[name] = { lca: lookup.combined.lca.employerTotal, confidence: lookup.confidence, trend };
         }
-      } catch {
+      } catch (err) {
+        console.error(`H1B Scout: GET_BADGES failed for shard ${letter}:`, err);
         for (const name of names) results[name] = { lca: 0, confidence: "none" };
       }
     })).then(() => sendResponse({ ok: true, results }));
