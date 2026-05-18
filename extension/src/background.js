@@ -1,4 +1,4 @@
-importScripts("shared/normalization.js", "shared/lookup.js", "shared/local-db.js");
+importScripts("shared/normalization.js", "shared/lookup.js", "shared/local-db.js", "shared/scoring.js");
 
 // ── Data source ─────────────────────────────────────────────────────────────
 // Base URL for the per-letter shard files on GitHub Releases.
@@ -511,8 +511,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           if (years.length >= 2) {
             const curr = lookup.byFiscalYear[years[0]]?.lca?.employerTotal ?? 0;
             const prior = lookup.byFiscalYear[years[1]]?.lca?.employerTotal ?? 0;
-            const diff = prior === 0 ? (curr > 0 ? 1 : 0) : (curr - prior) / prior;
-            trend = diff > 0.1 ? "up" : diff < -0.1 ? "down" : "flat";
+            trend = VisaSponsor.calculateTrend(curr, prior);
           }
           results[name] = { lca: lookup.combined.lca.employerTotal, confidence: lookup.confidence, trend };
         }
