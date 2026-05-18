@@ -21,6 +21,7 @@
 
   const BADGE_ATTR = "data-h1b-badge";
   let scanTimeout;
+  let coldStartRetried = false;
 
   // ── DOM helpers ──────────────────────────────────────────────────────────────
 
@@ -192,6 +193,21 @@
         });
       });
     } catch { /* service worker sleeping or quota — skip silently */ }
+
+    // Cold-start detection: if every company returned "none", the SW was likely
+    // waking up and failed to load shards. Reset attrs and retry once after 4s.
+    const allNone = companyToCards.size > 2 &&
+      [...companyToCards.keys()].every(n => !results[n] || results[n].confidence === "none");
+    if (allNone && !coldStartRetried) {
+      coldStartRetried = true;
+      setTimeout(() => {
+        for (const cards of companyToCards.values()) {
+          for (const card of cards) card.removeAttribute(BADGE_ATTR);
+        }
+        scanAndBadge();
+      }, 4000);
+      return;
+    }
 
     for (const [name, groupCards] of companyToCards.entries()) {
       const result = results[name];
