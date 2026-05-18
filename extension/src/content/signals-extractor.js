@@ -164,7 +164,8 @@
     return document.body?.innerText?.slice(0, 10000) || "";
   }
 
-  // Extract surrounding context for a match
+  // Returns up to 2 full sentences (or 400 chars) around a match so the user
+  // sees complete context, e.g. a trailing qualifier on the next sentence.
   function extractSentenceContext(text, matchIndex, matchLength) {
     let start = matchIndex;
     while (start > 0 && !/[.!?\n]/.test(text[start - 1])) start--;
