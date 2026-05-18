@@ -16,15 +16,19 @@
     return titleCaseSlug(decodeURIComponent(withoutRequisition));
   }
 
+  function looksLikeUrl(value) {
+    return /^https?:\/\//i.test(value) || /(?:^|\s)[\w-]+\.[\w-]+(?:\/|$)/.test(value);
+  }
+
   function cleanWorkdayCompany(value) {
     const cleaned = String(value || "").replace(/^Careers\s+at\s+/i, "").replace(/ Careers$/i, "").trim();
-    if (!cleaned || cleaned.includes(".myworkdayjobs.com") || cleaned.includes("/job/")) return "";
+    if (!cleaned || looksLikeUrl(cleaned)) return "";
     return cleaned;
   }
 
   function cleanWorkdayTitle(value) {
     const cleaned = String(value || "").replace(/\s*-\s*.+ Careers$/i, "").trim();
-    if (!cleaned || cleaned.includes(".myworkdayjobs.com") || cleaned.includes("/job/")) return "";
+    if (!cleaned || looksLikeUrl(cleaned)) return "";
     return cleaned;
   }
 
