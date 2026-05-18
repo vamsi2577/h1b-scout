@@ -17,7 +17,12 @@
   const isHigherEdJobs = (hostname === "www.higheredjobs.com" || hostname === "higheredjobs.com")
     && !path.includes("/details.cfm");
 
-  if (!isLinkedIn && !isGreenhouse && !isHigherEdJobs) return;
+  // hiring.cafe search/listing pages — homepage and ?searchState=… filtered views.
+  // Exclude individual job detail pages (/job/…) handled by job-extractor instead.
+  const isHiringCafe = (hostname === "hiring.cafe" || hostname === "www.hiring.cafe")
+    && !path.startsWith("/job/");
+
+  if (!isLinkedIn && !isGreenhouse && !isHigherEdJobs && !isHiringCafe) return;
 
   const BADGE_ATTR = "data-h1b-badge";
   let scanTimeout;
@@ -47,6 +52,10 @@
     if (isHigherEdJobs) {
       // Verified against live DOM: each listing is a div.row.record
       return document.querySelectorAll(`.row.record:not([${BADGE_ATTR}])`);
+    }
+    if (isHiringCafe) {
+      // Verified against live DOM: each job card is a div.relative.bg-white.rounded-xl
+      return document.querySelectorAll(`div.relative.bg-white.rounded-xl:not([${BADGE_ATTR}])`);
     }
     return [];
   }
@@ -99,6 +108,11 @@
       }
       return "";
     }
+    if (isHiringCafe) {
+      // Verified against live DOM: company name is the bold span inside the
+      // font-light description section — the 2nd span.font-bold in the card.
+      return card.querySelector(".line-clamp-3.font-light span.font-bold")?.textContent?.trim() || "";
+    }
     return "";
   }
 
@@ -141,6 +155,10 @@
         }
       }
       return null;
+    }
+    if (isHiringCafe) {
+      // Append badge inline after the company name bold span
+      return card.querySelector(".line-clamp-3.font-light span.font-bold") || null;
     }
     return null;
   }
