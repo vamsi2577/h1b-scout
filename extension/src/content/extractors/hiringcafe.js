@@ -2,22 +2,35 @@
   const { meta, parseTitleAtCompany } = root.VisaExtractors;
 
   // Populated when the user clicks a job card on the search/listing page.
-  // Cleared on full-page navigation (script re-runs from scratch).
+  // Cleared on SPA navigation so full-view /job/[id] pages always use og:title.
   let lastCardContext = null;
+
+  // Clear on any SPA navigation (hiring.cafe uses history.pushState for full-view links)
+  window.addEventListener("popstate", () => { lastCardContext = null; });
+  const _origPush = history.pushState.bind(history);
+  history.pushState = (...args) => { lastCardContext = null; return _origPush(...args); };
+
+  // How long to wait (ms) for React to update the detail panel after a card click
+  // before calling sendContext. 150ms gives React a comfortable render window.
+  const REACT_SETTLE_MS = 150;
 
   function hiringCafeContext() {
     // ── Mobile: Chakra drawer opened when a card is tapped ───────────────────
     // role="dialog" chakra-modal__content is only present on mobile/narrow viewports.
     const modal = document.querySelector('[role="dialog"].chakra-modal__content');
     if (modal) {
-      const jobTitle   = modal.querySelector('h2.font-extrabold')?.textContent?.trim() || "";
-      const companyRaw = modal.querySelector('span.text-xl.font-semibold')?.textContent?.trim() || "";
+      const jobTitle    = modal.querySelector('h2.font-extrabold')?.textContent?.trim() || "";
+      const companyRaw  = modal.querySelector('span.text-xl.font-semibold')?.textContent?.trim() || "";
       const companyName = companyRaw.replace(/^@\s*/, "").trim();
       if (jobTitle || companyName) return { companyName, jobTitle };
     }
 
     // ── Desktop: card click sets lastCardContext (see listener below) ─────────
-    if (lastCardContext) return lastCardContext;
+    // Skip on /job/[id] full-view pages — og:title is authoritative there and
+    // lastCardContext from a prior search visit would otherwise shadow it.
+    if (lastCardContext && !location.pathname.startsWith("/job/")) {
+      return lastCardContext;
+    }
 
     // ── Full-view page (/job/[id]) ────────────────────────────────────────────
     // og:title / document.title format: "Job Title at Company Name".
@@ -45,11 +58,10 @@
   // call the job-extractor's reextract hook so the extension panel updates.
   //
   // Selectors verified against live DOM (2026-05):
-  //   Title:   span.font-bold.line-clamp-2   (inside the md:mr-10 heading div)
+  //   Title:   span.font-bold.line-clamp-2 / .line-clamp-3 / .text-start
   //   Company: .line-clamp-3.font-light span.font-bold
   document.addEventListener("click", (e) => {
-    // Only act on card clicks, not on the "Job Posting" / "View all" links
-    // (those navigate to a new page which handles itself via og:title).
+    // Ignore "Job Posting" / "View all" links — those navigate and og:title handles it.
     if (e.target.closest('a[href^="/job/"], a[href^="/org/"]')) return;
 
     const card = e.target.closest("div.relative.bg-white.rounded-xl");
@@ -62,8 +74,8 @@
 
     lastCardContext = { companyName, jobTitle };
 
-    // Trigger the job-extractor's sendContext after React has updated the panel
-    setTimeout(() => window._h1bScoutReextract?.(), 100);
+    // Trigger the job-extractor's sendContext after React has settled
+    setTimeout(() => window._h1bScoutReextract?.(), REACT_SETTLE_MS);
   }, true /* capture — fires before React's own handlers */);
 
   root.VisaExtractors.hiringcafe = hiringCafeContext;
