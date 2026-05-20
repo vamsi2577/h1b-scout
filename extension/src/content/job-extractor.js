@@ -10,6 +10,7 @@
     if (hostname === "www.linkedin.com") return "linkedin";
     if (hostname === "www.higheredjobs.com" || hostname === "higheredjobs.com") return "higheredjobs";
     if (hostname === "hiring.cafe" || hostname === "www.hiring.cafe") return "hiringcafe";
+    if (hostname === "www.dice.com" || hostname === "dice.com") return "dice";
     return "unsupported";
   }
 
@@ -39,6 +40,7 @@
     // hiringcafe: no route guard needed — the extractor returns empty strings
     // when nothing is selected (search page, no card clicked, no modal open),
     // and sendContext() already bails on empty companyName + jobTitle.
+    if (source === "dice" && !location.pathname.startsWith("/job-detail/")) return;
     if (source === "linkedin") {
       if (location.pathname.startsWith("/jobs/")) {
         const currentJobId = new URLSearchParams(location.search).get("currentJobId");

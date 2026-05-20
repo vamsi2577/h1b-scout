@@ -22,7 +22,15 @@
   const isHiringCafe = (hostname === "hiring.cafe" || hostname === "www.hiring.cafe")
     && !path.startsWith("/job/");
 
-  if (!isLinkedIn && !isGreenhouse && !isHigherEdJobs && !isHiringCafe) return;
+  // dice.com job search pages (/jobs?q=… and /jobs/q-*).
+  // Exclude job detail pages (/job-detail/…) handled by job-extractor instead.
+  // Selectors verified against live DOM (2026-05):
+  //   Card:    [data-testid="job-card"] (has data-id attr for change tracking)
+  //   Company: a[href^="/company-profile"]:not([aria-label="Company Logo"])
+  const isDice = (hostname === "www.dice.com" || hostname === "dice.com")
+    && path.startsWith("/jobs");
+
+  if (!isLinkedIn && !isGreenhouse && !isHigherEdJobs && !isHiringCafe && !isDice) return;
 
   const BADGE_ATTR = "data-h1b-badge";
   let scanTimeout;
@@ -56,6 +64,15 @@
     if (isHiringCafe) {
       // Verified against live DOM: each job card is a div.relative.bg-white.rounded-xl
       return document.querySelectorAll(`div.relative.bg-white.rounded-xl:not([${BADGE_ATTR}])`);
+    }
+    if (isDice) {
+      // Verified against live DOM: each card is [data-testid="job-card"] with a stable
+      // data-id attribute. Filter by data-id (not BADGE_ATTR absence) so React element
+      // reuse is handled correctly — same pattern as LinkedIn's data-occludable-job-id.
+      const cards = document.querySelectorAll('[data-testid="job-card"]');
+      return [...cards].filter(card =>
+        card.getAttribute(BADGE_ATTR) !== card.getAttribute("data-id")
+      );
     }
     return [];
   }
@@ -113,6 +130,11 @@
       // font-light description section — the 2nd span.font-bold in the card.
       return card.querySelector(".line-clamp-3.font-light span.font-bold")?.textContent?.trim() || "";
     }
+    if (isDice) {
+      // Company name link: the anchor to /company-profile/ that is NOT the logo anchor.
+      // The logo anchor has aria-label="Company Logo"; the name anchor has plain text.
+      return card.querySelector('a[href^="/company-profile"]:not([aria-label="Company Logo"])')?.textContent?.trim() || "";
+    }
     return "";
   }
 
@@ -159,6 +181,9 @@
     if (isHiringCafe) {
       // Append badge inline after the company name bold span
       return card.querySelector(".line-clamp-3.font-light span.font-bold") || null;
+    }
+    if (isDice) {
+      return card.querySelector('a[href^="/company-profile"]:not([aria-label="Company Logo"])') || null;
     }
     return null;
   }
@@ -230,8 +255,10 @@
     for (const [name, groupCards] of companyToCards.entries()) {
       const result = results[name];
       for (const card of groupCards) {
-        // Mark as processed with the current jobId for LinkedIn, or "1" for others
-        const id = (isLinkedIn ? card.getAttribute('data-occludable-job-id') : null) || "1";
+        // Mark as processed with the current jobId for LinkedIn/Dice, or "1" for others
+        const id = (isLinkedIn ? card.getAttribute('data-occludable-job-id') : null)
+                || (isDice ? card.getAttribute('data-id') : null)
+                || "1";
         card.setAttribute(BADGE_ATTR, id);
 
         // Remove old badges if they exist (in case of element reuse)
@@ -268,8 +295,8 @@
     attributeFilter: ['data-occludable-job-id']
   });
 
-  // LinkedIn SPA navigation — re-run when the user browses to a different search
-  if (isLinkedIn) {
+  // LinkedIn / Dice SPA navigation — re-run when the user browses to a different search
+  if (isLinkedIn || isDice) {
     const origPush = history.pushState.bind(history);
     history.pushState = (...args) => { origPush(...args); scheduleScan(); };
     const origReplace = history.replaceState.bind(history);
