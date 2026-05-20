@@ -30,12 +30,12 @@
   const BTN_ID = "h1b-scout-copy-jd";
 
   function buildCopyText() {
-    const header = document.querySelector('[data-testid="job-detail-header-card"]');
+    const header  = document.querySelector('[data-testid="job-detail-header-card"]');
     const title   = header?.querySelector("h1")?.innerText?.trim() || "";
     const company = header?.querySelector('a[data-wa-click="djv-job-company-profile-click"]')?.innerText?.trim() || "";
     const jdEl    = document.querySelector('[class*="jobDescription"]');
     const jd      = jdEl?.innerText?.trim() || "";
-    return [title, company, jd].filter(Boolean).join("\n\n");
+    return [title, company, jd].filter(Boolean).join("\n\n").replace(/\n{3,}/g, "\n\n");
   }
 
   function tryInjectCopyButton() {
@@ -44,48 +44,8 @@
     const jdEl = document.querySelector('[class*="jobDescription"]');
     if (!jdEl) return;                                          // not rendered yet
 
-    const btn = document.createElement("button");
+    const btn = root.VisaExtractors.createCopyButton(buildCopyText);
     btn.id = BTN_ID;
-    btn.type = "button";
-    btn.textContent = "Copy JD";
-    btn.style.cssText = [
-      "display:inline-flex",
-      "align-items:center",
-      "gap:4px",
-      "border:1px solid #d4d4d8",
-      "border-radius:6px",
-      "padding:3px 10px",
-      "font-size:12px",
-      "font-weight:500",
-      "background:#fff",
-      "color:#2563eb",
-      "cursor:pointer",
-      "flex-shrink:0",
-      "transition:background 0.15s",
-    ].join(";");
-
-    btn.addEventListener("mouseenter", () => { btn.style.background = "#eff6ff"; });
-    btn.addEventListener("mouseleave", () => { btn.style.background = "#fff"; });
-
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const text = buildCopyText();
-      navigator.clipboard.writeText(text).then(() => {
-        btn.textContent = "✓ Copied";
-        btn.style.color = "#16a34a";
-        setTimeout(() => {
-          btn.textContent = "Copy JD";
-          btn.style.color = "#2563eb";
-        }, 2000);
-      }).catch(() => {
-        btn.textContent = "Failed";
-        btn.style.color = "#dc2626";
-        setTimeout(() => {
-          btn.textContent = "Copy JD";
-          btn.style.color = "#2563eb";
-        }, 2000);
-      });
-    });
 
     // Place inline after the "Job Details" h2
     const h2 = [...document.querySelectorAll("h2")].find(
