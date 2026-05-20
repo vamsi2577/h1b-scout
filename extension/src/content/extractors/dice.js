@@ -30,12 +30,12 @@
   const BTN_ID = "h1b-scout-copy-jd";
 
   function buildCopyText() {
-    const header = document.querySelector('[data-testid="job-detail-header-card"]');
+    const header  = document.querySelector('[data-testid="job-detail-header-card"]');
     const title   = header?.querySelector("h1")?.innerText?.trim() || "";
     const company = header?.querySelector('a[data-wa-click="djv-job-company-profile-click"]')?.innerText?.trim() || "";
     const jdEl    = document.querySelector('[class*="jobDescription"]');
     const jd      = jdEl?.innerText?.trim() || "";
-    return [title, company, jd].filter(Boolean).join("\n\n");
+    return [title, company, jd].filter(Boolean).join("\n\n").replace(/\n{3,}/g, "\n\n");
   }
 
   function tryInjectCopyButton() {
