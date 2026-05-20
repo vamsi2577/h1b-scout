@@ -73,40 +73,8 @@
     const jdEl = document.querySelector('[data-automation-id="jobPostingDescription"]');
     if (!jdEl) return;
 
-    const btn = document.createElement("button");
+    const btn = root.VisaExtractors.createCopyButton(buildCopyText);
     btn.id = BTN_ID;
-    btn.type = "button";
-    btn.textContent = "Copy JD";
-    btn.style.cssText = [
-      "display:inline-flex",
-      "align-items:center",
-      "border:1px solid #d4d4d8",
-      "border-radius:6px",
-      "padding:3px 10px",
-      "font-size:12px",
-      "font-weight:500",
-      "background:#fff",
-      "color:#2563eb",
-      "cursor:pointer",
-      "flex-shrink:0",
-      "transition:background 0.15s",
-    ].join(";");
-
-    btn.addEventListener("mouseenter", () => { btn.style.background = "#eff6ff"; });
-    btn.addEventListener("mouseleave", () => { btn.style.background = "#fff"; });
-
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      navigator.clipboard.writeText(buildCopyText()).then(() => {
-        btn.textContent = "✓ Copied";
-        btn.style.color = "#16a34a";
-        setTimeout(() => { btn.textContent = "Copy JD"; btn.style.color = "#2563eb"; }, 2000);
-      }).catch(() => {
-        btn.textContent = "Failed";
-        btn.style.color = "#dc2626";
-        setTimeout(() => { btn.textContent = "Copy JD"; btn.style.color = "#2563eb"; }, 2000);
-      });
-    });
 
     // Place inline after the job title heading
     const heading =
