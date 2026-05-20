@@ -34,7 +34,7 @@ function render(payload) {
   elements.confidenceLabel.textContent = lookup.confidence === "none" ? "No match" : `${lookup.confidence} match`;
 
   if (!company && !title) {
-    setStatus("Open a job post on Greenhouse, Workday, Lever, Ashby, LinkedIn, HigherEdJobs, or hiring.cafe — or enter a company and title manually.");
+    setStatus("Open a job post on Greenhouse, Workday, Lever, Ashby, LinkedIn, HigherEdJobs, hiring.cafe, or Dice — or enter a company and title manually.");
     elements.form.hidden = false;
     elements.companyInput.focus();
   } else if (!lookup.employerMatch) {
