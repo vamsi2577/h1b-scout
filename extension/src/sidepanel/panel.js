@@ -25,6 +25,12 @@ function render(payload) {
   // Embedded ATS page detected but optional <all_urls> permission not granted
   if (currentContext.needsEmbeddedPermission) {
     setStatus("");
+    // Hide all data sections to avoid showing stale content from a previous job
+    elements.statsGrid.hidden        = true;
+    elements.wageCard.hidden         = true;
+    elements.yearCard.hidden         = true;
+    elements.signalsSection.hidden   = true;
+    elements.suggestionsSection.hidden = true;
     showPermissionPrompt(currentContext.source);
     return;
   }
@@ -122,7 +128,14 @@ elements.grantAccessBtn.addEventListener("click", async () => {
       hidePermissionPrompt();
       setStatus("Permission granted — re-scanning page…");
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      chrome.runtime.sendMessage({ type: "REEXTRACT", tabId: tab?.id }, () => {});
+      // Use RETRY_EMBEDDED_ATS so the background re-runs its own gh_jid/ashby_jid
+      // extraction — REEXTRACT injects content scripts that lack VisaExtractors on
+      // arbitrary company domains and would silently fail.
+      chrome.runtime.sendMessage({
+        type: "RETRY_EMBEDDED_ATS",
+        tabId: tab?.id,
+        url: currentContext.url
+      }, () => {});
     } else {
       elements.grantAccessBtn.textContent = "Grant access";
       elements.grantAccessBtn.disabled = false;

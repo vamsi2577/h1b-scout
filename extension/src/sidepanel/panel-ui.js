@@ -254,8 +254,13 @@
     }
   }
 
+  const EMBEDDED_ATS_LABELS = {
+    greenhouse: "Greenhouse",
+    ashby: "Ashby",
+  };
+
   function showPermissionPrompt(source) {
-    const label = source === "ashby" ? "Ashby" : "Greenhouse";
+    const label = EMBEDDED_ATS_LABELS[source] ?? "the job board";
     elements.permissionPromptMsg.textContent =
       `This job is hosted on a company career page using ${label}. ` +
       `H1B Scout needs permission to read it.`;

@@ -57,37 +57,44 @@
    * inserting it into the DOM.
    */
   function createCopyButton(buildTextFn) {
+    // Detect OS colour scheme — the button is injected into third-party ATS pages
+    // that don't share the extension's CSS variables, so we set colours directly.
+    const dark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+    const C = dark
+      ? { bg: "#1e293b", border: "#334155", text: "#60a5fa", hover: "#1e3a5f", success: "#4ade80", error: "#f87171" }
+      : { bg: "#fff",    border: "#d4d4d8", text: "#2563eb", hover: "#eff6ff", success: "#16a34a", error: "#dc2626" };
+
     const btn = document.createElement("button");
     btn.type = "button";
     btn.textContent = "Copy JD";
     btn.style.cssText = [
       "display:inline-flex",
       "align-items:center",
-      "border:1px solid #d4d4d8",
+      `border:1px solid ${C.border}`,
       "border-radius:6px",
       "padding:3px 10px",
       "font-size:12px",
       "font-weight:500",
-      "background:#fff",
-      "color:#2563eb",
+      `background:${C.bg}`,
+      `color:${C.text}`,
       "cursor:pointer",
       "flex-shrink:0",
       "transition:background 0.15s",
     ].join(";");
 
-    btn.addEventListener("mouseenter", () => { btn.style.background = "#eff6ff"; });
-    btn.addEventListener("mouseleave", () => { btn.style.background = "#fff"; });
+    btn.addEventListener("mouseenter", () => { btn.style.background = C.hover; });
+    btn.addEventListener("mouseleave", () => { btn.style.background = C.bg; });
 
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       navigator.clipboard.writeText(buildTextFn()).then(() => {
         btn.textContent = "✓ Copied";
-        btn.style.color = "#16a34a";
-        setTimeout(() => { btn.textContent = "Copy JD"; btn.style.color = "#2563eb"; }, 2000);
+        btn.style.color = C.success;
+        setTimeout(() => { btn.textContent = "Copy JD"; btn.style.color = C.text; }, 2000);
       }).catch(() => {
         btn.textContent = "Failed";
-        btn.style.color = "#dc2626";
-        setTimeout(() => { btn.textContent = "Copy JD"; btn.style.color = "#2563eb"; }, 2000);
+        btn.style.color = C.error;
+        setTimeout(() => { btn.textContent = "Copy JD"; btn.style.color = C.text; }, 2000);
       });
     });
 
