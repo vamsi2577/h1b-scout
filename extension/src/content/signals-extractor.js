@@ -8,7 +8,7 @@
     '.job__description',                             // Greenhouse
     '[data-qa="job-description"]',                   // Lever
     '[data-qa="posting-requirements"]',              // Lever (requirements block)
-    '[class*="descriptionText"]',                    // Ashby (CSS-module class)
+    '.ashby-job-posting-right-pane [class*="descriptionText"]', // Ashby (scoped to right pane)
     '#job-details',                                  // LinkedIn (stable id)
     '.jobs-description__content',                    // LinkedIn (fallback)
     '#jobDesc',                                      // HigherEdJobs (stable id)
