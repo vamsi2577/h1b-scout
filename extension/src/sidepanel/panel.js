@@ -5,7 +5,8 @@
 
 const {
   elements, format,
-  setStatus, renderStats, renderTrend, renderSuggestions,
+  setStatus, showPermissionPrompt, hidePermissionPrompt,
+  renderStats, renderTrend, renderSuggestions,
   renderYearBreakdown, renderSignals, renderSponsorScore, renderLinks
 } = PanelUI;
 
@@ -14,11 +15,27 @@ let currentContext = {};
 // ── Main render ───────────────────────────────────────────────────────────────
 function render(payload) {
   if (!payload.ok) {
+    hidePermissionPrompt();
     setStatus(payload.error || "Unable to load sponsorship data. Open Settings (⚙) to configure a data source.");
     return;
   }
 
   currentContext = payload.context || {};
+
+  // Embedded ATS page detected but optional <all_urls> permission not granted
+  if (currentContext.needsEmbeddedPermission) {
+    setStatus("");
+    // Hide all data sections to avoid showing stale content from a previous job
+    elements.statsGrid.hidden        = true;
+    elements.wageCard.hidden         = true;
+    elements.yearCard.hidden         = true;
+    elements.signalsSection.hidden   = true;
+    elements.suggestionsSection.hidden = true;
+    showPermissionPrompt(currentContext.source);
+    return;
+  }
+
+  hidePermissionPrompt();
   const lookup = payload.lookup;
   const company = format.truncate(currentContext.companyName || "");
   const title = format.truncate(currentContext.jobTitle || "");
@@ -99,6 +116,35 @@ elements.editLookupBtn.addEventListener("click", () => {
 
 elements.cancelEditBtn.addEventListener("click", () => {
   elements.form.hidden = true;
+});
+
+// ── Embedded ATS permission prompt ────────────────────────────────────────────
+elements.grantAccessBtn.addEventListener("click", async () => {
+  elements.grantAccessBtn.textContent = "Requesting…";
+  elements.grantAccessBtn.disabled = true;
+  try {
+    const granted = await chrome.permissions.request({ origins: ["<all_urls>"] });
+    if (granted) {
+      hidePermissionPrompt();
+      setStatus("Permission granted — re-scanning page…");
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      // Use RETRY_EMBEDDED_ATS so the background re-runs its own gh_jid/ashby_jid
+      // extraction — REEXTRACT injects content scripts that lack VisaExtractors on
+      // arbitrary company domains and would silently fail.
+      chrome.runtime.sendMessage({
+        type: "RETRY_EMBEDDED_ATS",
+        tabId: tab?.id,
+        url: currentContext.url
+      }, () => {});
+    } else {
+      elements.grantAccessBtn.textContent = "Grant access";
+      elements.grantAccessBtn.disabled = false;
+      setStatus("Permission not granted. The extension cannot read this page without it.", "warning");
+    }
+  } catch {
+    elements.grantAccessBtn.textContent = "Grant access";
+    elements.grantAccessBtn.disabled = false;
+  }
 });
 
 // ── Reload button ─────────────────────────────────────────────────────────────

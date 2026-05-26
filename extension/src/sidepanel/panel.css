@@ -48,6 +48,9 @@
   .status                { background: var(--tint-warn-bg); border-color: var(--tint-warn-border); }
   .status.info           { background: var(--tint-green); border-color: var(--tint-green-border); }
 
+  /* Permission prompt — accent is bright teal in dark mode, needs dark text */
+  .permission-prompt__btn { color: #0d1a18; }
+
   .coverage span         { background: var(--tint-green); }
 
   /* Signal chips */
@@ -341,6 +344,39 @@ button:hover {
   border-color: var(--tint-green-border);
   color: var(--accent-dark);
 }
+
+.permission-prompt {
+  background: var(--tint-warn-bg);
+  border: 1px solid var(--tint-warn-border);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.permission-prompt__msg {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--warn);
+  margin: 0;
+}
+
+.permission-prompt__btn {
+  align-self: flex-start;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  transition: opacity 0.15s;
+}
+
+.permission-prompt__btn:hover { opacity: 0.85; }
+.permission-prompt__btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .coverage {
   align-items: center;
