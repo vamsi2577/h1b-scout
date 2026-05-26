@@ -248,6 +248,12 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // ── Embedded ATS detection (gh_jid / ashby_jid URL params) ───────────────────
+// Requires <all_urls> optional permission to inject scripts into arbitrary
+// company pages. Gracefully skips injection when permission is not granted.
+async function hasAllUrlsPermission() {
+  return chrome.permissions.contains({ origins: ["<all_urls>"] });
+}
+
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // When the page finishes loading, retry signals extraction for embedded ATS tabs
   // whose signals were still empty (script was injected too early at URL-change time).
@@ -259,7 +265,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         const u = new URL(tab?.url || "");
         hasEmbeddedAts = u.searchParams.has("gh_jid") || u.searchParams.has("ashby_jid");
       } catch {}
-      if (hasEmbeddedAts) {
+      if (hasEmbeddedAts && (await hasAllUrlsPermission())) {
         try {
           await chrome.scripting.executeScript({ target: { tabId }, files: ["src/shared/normalization.js", "src/content/signals-extractor.js"] });
           const [sigResult] = await chrome.scripting.executeScript({
@@ -284,6 +290,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const ghJid = url.searchParams.get("gh_jid");
   const ashbyJid = url.searchParams.get("ashby_jid");
   if (!ghJid && !ashbyJid) return;
+
+  // Embedded ATS pages are on arbitrary domains — scripting requires the
+  // optional <all_urls> permission. Skip silently if not granted.
+  if (!(await hasAllUrlsPermission())) return;
 
   if (!panelEnabledTabs.has(tabId)) {
     panelEnabledTabs.add(tabId);
