@@ -5,6 +5,23 @@
   "description": "See H-1B and PERM sponsorship history for any employer - right from the job post. Supports Greenhouse, Workday, Lever, Ashby, LinkedIn, HigherEdJobs, hiring.cafe, Dice, and embedded ATS boards.",
   "permissions": ["sidePanel", "tabs", "storage", "scripting", "clipboardWrite"],
   "host_permissions": [
+    "https://*.greenhouse.io/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.workdayjobs.com/*",
+    "https://jobs.lever.co/*",
+    "https://jobs.ashbyhq.com/*",
+    "https://www.linkedin.com/*",
+    "https://www.higheredjobs.com/*",
+    "https://higheredjobs.com/*",
+    "https://hiring.cafe/*",
+    "https://www.dice.com/*",
+    "https://dice.com/*",
+    "https://api.github.com/*",
+    "https://github.com/*",
+    "https://objects.githubusercontent.com/*",
+    "https://boards-api.greenhouse.io/*"
+  ],
+  "optional_host_permissions": [
     "<all_urls>"
   ],
   "content_security_policy": {

@@ -248,43 +248,23 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // ── Embedded ATS detection (gh_jid / ashby_jid URL params) ───────────────────
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // When the page finishes loading, retry signals extraction for embedded ATS tabs
-  // whose signals were still empty (script was injected too early at URL-change time).
-  if (changeInfo.status === "complete" && !changeInfo.url) {
-    const existing = latestContextByTab.get(tabId);
-    if (existing && (!existing.signals || existing.signals.length === 0)) {
-      let hasEmbeddedAts = false;
-      try {
-        const u = new URL(tab?.url || "");
-        hasEmbeddedAts = u.searchParams.has("gh_jid") || u.searchParams.has("ashby_jid");
-      } catch {}
-      if (hasEmbeddedAts) {
-        try {
-          await chrome.scripting.executeScript({ target: { tabId }, files: ["src/shared/normalization.js", "src/content/signals-extractor.js"] });
-          const [sigResult] = await chrome.scripting.executeScript({
-            target: { tabId },
-            func: () => (typeof VisaSponsor !== "undefined" && VisaSponsor.extractSignals) ? VisaSponsor.extractSignals() : []
-          });
-          const signals = Array.isArray(sigResult?.result) ? sigResult.result : [];
-          if (signals.length > 0) {
-            latestContextByTab.set(tabId, { ...existing, signals });
-            chrome.runtime.sendMessage({ type: "CONTEXT_UPDATED", tabId }).catch(() => {});
-          }
-        } catch { /* page may block injection */ }
-      }
-    }
-    return;
-  }
+// Requires <all_urls> optional permission to inject scripts into arbitrary
+// company pages. Gracefully shows a prompt when permission is not granted.
 
-  if (!changeInfo.url) return;
-  let url;
-  try { url = new URL(changeInfo.url); } catch { return; }
+// Session-scoped cache — avoids a chrome.permissions.contains call on every
+// tab URL-change. Invalidated when permissions are added or removed.
+let allUrlsPermCache = null;
+async function hasAllUrlsPermission() {
+  if (allUrlsPermCache !== null) return allUrlsPermCache;
+  allUrlsPermCache = await chrome.permissions.contains({ origins: ["<all_urls>"] });
+  return allUrlsPermCache;
+}
+chrome.permissions.onAdded.addListener(() => { allUrlsPermCache = null; });
+chrome.permissions.onRemoved.addListener(() => { allUrlsPermCache = null; });
 
-  const ghJid = url.searchParams.get("gh_jid");
-  const ashbyJid = url.searchParams.get("ashby_jid");
-  if (!ghJid && !ashbyJid) return;
-
+// Core embedded-ATS extraction — shared by onUpdated and RETRY_EMBEDDED_ATS.
+// Probes the page for company/title/signals and broadcasts CONTEXT_UPDATED.
+async function runEmbeddedAtsExtraction(tabId, rawUrl, ghJid, ashbyJid) {
   if (!panelEnabledTabs.has(tabId)) {
     panelEnabledTabs.add(tabId);
     chrome.sidePanel.setOptions({ tabId, path: "src/sidepanel/panel.html", enabled: true });
@@ -337,8 +317,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         signals = Array.isArray(sigResult?.result) ? sigResult.result : [];
       } catch { /* page may block script injection — signals stay empty */ }
 
-      const context = { companyName: companyName || "", jobTitle, source: "greenhouse", url: changeInfo.url, signals };
+      const context = { companyName: companyName || "", jobTitle, source: "greenhouse", url: rawUrl, signals };
       latestContextByTab.set(tabId, context);
+      chrome.storage.session.set({ [`tab_${tabId}`]: context }).catch(() => {});
       chrome.runtime.sendMessage({ type: "CONTEXT_UPDATED", tabId }).catch(() => {});
     }
 
@@ -364,13 +345,74 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         signals = Array.isArray(sigResult?.result) ? sigResult.result : [];
       } catch { /* page may block script injection — signals stay empty */ }
 
-      const context = { companyName: probe?.result?.companyName || "", jobTitle: "", source: "ashby", url: changeInfo.url, signals };
+      const context = { companyName: probe?.result?.companyName || "", jobTitle: "", source: "ashby", url: rawUrl, signals };
       latestContextByTab.set(tabId, context);
+      chrome.storage.session.set({ [`tab_${tabId}`]: context }).catch(() => {});
       chrome.runtime.sendMessage({ type: "CONTEXT_UPDATED", tabId }).catch(() => {});
     }
   } catch {
     // scripting.executeScript can fail if the tab navigated away
   }
+}
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // When the page finishes loading, retry signals extraction for embedded ATS tabs
+  // whose signals were still empty (script was injected too early at URL-change time).
+  if (changeInfo.status === "complete" && !changeInfo.url) {
+    const existing = latestContextByTab.get(tabId);
+    if (existing && (!existing.signals || existing.signals.length === 0)) {
+      let hasEmbeddedAts = false;
+      try {
+        const u = new URL(tab?.url || "");
+        hasEmbeddedAts = u.searchParams.has("gh_jid") || u.searchParams.has("ashby_jid");
+      } catch {}
+      if (hasEmbeddedAts && (await hasAllUrlsPermission())) {
+        try {
+          await chrome.scripting.executeScript({ target: { tabId }, files: ["src/shared/normalization.js", "src/content/signals-extractor.js"] });
+          const [sigResult] = await chrome.scripting.executeScript({
+            target: { tabId },
+            func: () => (typeof VisaSponsor !== "undefined" && VisaSponsor.extractSignals) ? VisaSponsor.extractSignals() : []
+          });
+          const signals = Array.isArray(sigResult?.result) ? sigResult.result : [];
+          if (signals.length > 0) {
+            latestContextByTab.set(tabId, { ...existing, signals });
+            chrome.runtime.sendMessage({ type: "CONTEXT_UPDATED", tabId }).catch(() => {});
+          }
+        } catch { /* page may block injection */ }
+      }
+    }
+    return;
+  }
+
+  if (!changeInfo.url) return;
+  let url;
+  try { url = new URL(changeInfo.url); } catch { return; }
+
+  const ghJid    = url.searchParams.get("gh_jid");
+  const ashbyJid = url.searchParams.get("ashby_jid");
+  if (!ghJid && !ashbyJid) return;
+
+  // Embedded ATS pages are on arbitrary domains — scripting requires the
+  // optional <all_urls> permission. When not granted, open the panel and
+  // show a prompt so the user can grant it with one click.
+  if (!(await hasAllUrlsPermission())) {
+    const context = {
+      needsEmbeddedPermission: true,
+      companyName: "", jobTitle: "",
+      source: ghJid ? "greenhouse" : "ashby",
+      url: changeInfo.url
+    };
+    latestContextByTab.set(tabId, context);
+    chrome.storage.session.set({ [`tab_${tabId}`]: context }).catch(() => {});
+    if (!panelEnabledTabs.has(tabId)) {
+      panelEnabledTabs.add(tabId);
+      chrome.sidePanel.setOptions({ tabId, path: "src/sidepanel/panel.html", enabled: true });
+    }
+    chrome.runtime.sendMessage({ type: "CONTEXT_UPDATED", tabId }).catch(() => {});
+    return;
+  }
+
+  await runEmbeddedAtsExtraction(tabId, changeInfo.url, ghJid, ashbyJid);
 });
 
 // ── Message handling ──────────────────────────────────────────────────────────
@@ -471,6 +513,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         .catch((e) => sendResponse({ ok: false, error: e.message }));
     }).catch((e) => sendResponse({ ok: false, error: e.message }));
     return true;
+  }
+
+  // ── Embedded ATS retry (after user grants optional <all_urls> permission) ──
+  // REEXTRACT injects content scripts which won't find VisaExtractors.greenhouse
+  // on arbitrary company domains — re-run the background's own extraction instead.
+  if (message.type === "RETRY_EMBEDDED_ATS") {
+    const rawUrl = message.url || "";
+    let parsedUrl;
+    try { parsedUrl = new URL(rawUrl); } catch { sendResponse({ ok: false }); return false; }
+    const ghJid    = parsedUrl.searchParams.get("gh_jid");
+    const ashbyJid = parsedUrl.searchParams.get("ashby_jid");
+    if (!ghJid && !ashbyJid) { sendResponse({ ok: false }); return false; }
+    runEmbeddedAtsExtraction(tabId, rawUrl, ghJid, ashbyJid)
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }));
+    return true; // async
   }
 
   if (message.type === "LOOKUP_OVERRIDE") {
