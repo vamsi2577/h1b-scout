@@ -2,15 +2,18 @@
   if (root.VisaSponsor && root.VisaSponsor.extractSignals) return;
   // Ordered list of selectors to find the job description text.
   // First match wins; falls back to document.body.
+  // Keep in sync with per-platform extractors in src/content/extractors/.
   const DESCRIPTION_SELECTORS = [
     '[data-automation-id="jobPostingDescription"]', // Workday
-    '#content',                                      // Greenhouse
-    '.job__description',                             // Greenhouse alt
-    '.posting-requirements',                         // Lever
-    '.section-wrapper',                              // Lever alt
-    '[data-testid="job-description"]',               // Ashby
-    '[class*="jobDescription"]',
-    '[class*="job-description"]',
+    '.job__description',                             // Greenhouse
+    '[data-qa="job-description"]',                   // Lever
+    '[data-qa="posting-requirements"]',              // Lever (requirements block)
+    '[class*="descriptionText"]',                    // Ashby (CSS-module class)
+    '#job-details',                                  // LinkedIn (stable id)
+    '.jobs-description__content',                    // LinkedIn (fallback)
+    '#jobDesc',                                      // HigherEdJobs (stable id)
+    '[class*="jobDescription"]',                     // Dice (CSS-module class)
+    '[class*="job-description"]',                    // generic fallback
     'article',
     'main'
   ];
