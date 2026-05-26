@@ -292,8 +292,24 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (!ghJid && !ashbyJid) return;
 
   // Embedded ATS pages are on arbitrary domains — scripting requires the
-  // optional <all_urls> permission. Skip silently if not granted.
-  if (!(await hasAllUrlsPermission())) return;
+  // optional <all_urls> permission. When not granted, open the panel and
+  // show a prompt so the user can grant it with one click.
+  if (!(await hasAllUrlsPermission())) {
+    const context = {
+      needsEmbeddedPermission: true,
+      companyName: "", jobTitle: "",
+      source: ghJid ? "greenhouse" : "ashby",
+      url: changeInfo.url
+    };
+    latestContextByTab.set(tabId, context);
+    chrome.storage.session.set({ [`tab_${tabId}`]: context }).catch(() => {});
+    if (!panelEnabledTabs.has(tabId)) {
+      panelEnabledTabs.add(tabId);
+      chrome.sidePanel.setOptions({ tabId, path: "src/sidepanel/panel.html", enabled: true });
+    }
+    chrome.runtime.sendMessage({ type: "CONTEXT_UPDATED", tabId }).catch(() => {});
+    return;
+  }
 
   if (!panelEnabledTabs.has(tabId)) {
     panelEnabledTabs.add(tabId);

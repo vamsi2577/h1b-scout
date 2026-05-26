@@ -40,6 +40,9 @@
     cancelEditBtn: document.querySelector("#cancelEditBtn"),
     suggestionsSection: document.querySelector("#suggestionsSection"),
     suggestionsList: document.querySelector("#suggestionsList"),
+    permissionPrompt: document.querySelector("#permissionPrompt"),
+    permissionPromptMsg: document.querySelector("#permissionPromptMsg"),
+    grantAccessBtn: document.querySelector("#grantAccessBtn"),
     customUrlInput: document.querySelector("#customUrlInput"),
     saveUrlBtn: document.querySelector("#saveUrlBtn"),
     resetUrlBtn: document.querySelector("#resetUrlBtn"),
@@ -251,10 +254,25 @@
     }
   }
 
+  function showPermissionPrompt(source) {
+    const label = source === "ashby" ? "Ashby" : "Greenhouse";
+    elements.permissionPromptMsg.textContent =
+      `This job is hosted on a company career page using ${label}. ` +
+      `H1B Scout needs permission to read it.`;
+    elements.permissionPrompt.hidden = false;
+  }
+
+  function hidePermissionPrompt() {
+    elements.permissionPrompt.hidden = true;
+    elements.permissionPromptMsg.textContent = "";
+  }
+
   root.PanelUI = {
     elements,
     format,
     setStatus,
+    showPermissionPrompt,
+    hidePermissionPrompt,
     renderStats,
     renderTrend,
     renderSuggestions,

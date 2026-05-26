@@ -5,7 +5,8 @@
 
 const {
   elements, format,
-  setStatus, renderStats, renderTrend, renderSuggestions,
+  setStatus, showPermissionPrompt, hidePermissionPrompt,
+  renderStats, renderTrend, renderSuggestions,
   renderYearBreakdown, renderSignals, renderSponsorScore, renderLinks
 } = PanelUI;
 
@@ -14,11 +15,21 @@ let currentContext = {};
 // ── Main render ───────────────────────────────────────────────────────────────
 function render(payload) {
   if (!payload.ok) {
+    hidePermissionPrompt();
     setStatus(payload.error || "Unable to load sponsorship data. Open Settings (⚙) to configure a data source.");
     return;
   }
 
   currentContext = payload.context || {};
+
+  // Embedded ATS page detected but optional <all_urls> permission not granted
+  if (currentContext.needsEmbeddedPermission) {
+    setStatus("");
+    showPermissionPrompt(currentContext.source);
+    return;
+  }
+
+  hidePermissionPrompt();
   const lookup = payload.lookup;
   const company = format.truncate(currentContext.companyName || "");
   const title = format.truncate(currentContext.jobTitle || "");
@@ -99,6 +110,28 @@ elements.editLookupBtn.addEventListener("click", () => {
 
 elements.cancelEditBtn.addEventListener("click", () => {
   elements.form.hidden = true;
+});
+
+// ── Embedded ATS permission prompt ────────────────────────────────────────────
+elements.grantAccessBtn.addEventListener("click", async () => {
+  elements.grantAccessBtn.textContent = "Requesting…";
+  elements.grantAccessBtn.disabled = true;
+  try {
+    const granted = await chrome.permissions.request({ origins: ["<all_urls>"] });
+    if (granted) {
+      hidePermissionPrompt();
+      setStatus("Permission granted — re-scanning page…");
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      chrome.runtime.sendMessage({ type: "REEXTRACT", tabId: tab?.id }, () => {});
+    } else {
+      elements.grantAccessBtn.textContent = "Grant access";
+      elements.grantAccessBtn.disabled = false;
+      setStatus("Permission not granted. The extension cannot read this page without it.", "warning");
+    }
+  } catch {
+    elements.grantAccessBtn.textContent = "Grant access";
+    elements.grantAccessBtn.disabled = false;
+  }
 });
 
 // ── Reload button ─────────────────────────────────────────────────────────────
