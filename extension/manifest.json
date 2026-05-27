@@ -76,6 +76,12 @@
         "https://dice.com/jobs*"
       ],
       "js": [
+        "src/content/badgers/common.js",
+        "src/content/badgers/linkedin.js",
+        "src/content/badgers/greenhouse.js",
+        "src/content/badgers/higheredjobs.js",
+        "src/content/badgers/hiringcafe.js",
+        "src/content/badgers/dice.js",
         "src/content/badge-injector.js"
       ],
       "css": ["src/content/badge.css"],
