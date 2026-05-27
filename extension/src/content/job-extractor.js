@@ -32,7 +32,14 @@
 
   function sendContext() {
     if (source === "unsupported") return;
-    if (source === "greenhouse" && !location.pathname.includes("/jobs/")) return;
+    // Greenhouse: require a /jobs/ path, but exclude post-apply confirmation and
+    // application form pages — these have no real company/title and otherwise
+    // surface "Thank you for applying" as the company name.
+    if (source === "greenhouse" && (
+      !location.pathname.includes("/jobs/") ||
+      location.pathname.includes("/confirmation") ||
+      location.pathname.includes("/application")
+    )) return;
     if (source === "workday" && !location.pathname.includes("/job/")) return;
     if (source === "lever" && location.pathname.split("/").filter(Boolean).length < 2) return;
     if (source === "ashby" && location.pathname.split("/").filter(Boolean).length < 2) return;
