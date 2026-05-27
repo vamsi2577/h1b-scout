@@ -14,12 +14,15 @@
     getJobCards() {
       // my.greenhouse.io search results use data-provides="search-result".
       // boards.greenhouse.io use .opening / .job-post / data-gh='job'.
-      return document.querySelectorAll(`
+      const cards = document.querySelectorAll(`
         [data-provides="search-result"]:not([${BADGE_ATTR}]),
         .opening:not([${BADGE_ATTR}]),
         .job-post:not([${BADGE_ATTR}]),
         [data-gh='job']:not([${BADGE_ATTR}])
       `.trim());
+      // The "Create a Job Alert" CTA widget matches the broad card selectors but
+      // is not a real listing — skip it so it doesn't get an H-1B badge.
+      return [...cards].filter((card) => !/\bjob alert\b/i.test(card.textContent || ""));
     },
 
     getCompanyText(card) {
