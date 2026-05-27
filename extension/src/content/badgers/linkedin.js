@@ -7,7 +7,7 @@
     observerAttributeFilter: ["data-occludable-job-id"],
 
     match(hostname, path) {
-      return hostname.includes("linkedin.com") && (
+      return hostname === "www.linkedin.com" && (
         path.startsWith("/jobs/search") ||
         path.startsWith("/jobs/collections") ||
         path.startsWith("/jobs/recommended")

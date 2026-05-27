@@ -7,7 +7,8 @@
     match(hostname, path) {
       // Includes boards and search pages.
       // Exclude actual application/detail pages (usually /jobs/123456).
-      return hostname.includes("greenhouse.io") && !/\/jobs\/\d+/.test(path);
+      const isGreenhouseHost = hostname === "greenhouse.io" || hostname.endsWith(".greenhouse.io");
+      return isGreenhouseHost && !/\/jobs\/\d+/.test(path);
     },
 
     getJobCards() {
