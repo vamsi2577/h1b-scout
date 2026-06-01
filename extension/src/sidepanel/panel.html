@@ -7,7 +7,14 @@
     <link rel="stylesheet" href="panel.css">
   </head>
   <body>
-    <main>
+    <nav class="card-nav" role="tablist" aria-label="Side-panel cards">
+      <button class="card-nav__dot card-nav__dot--active" role="tab" data-card="sponsorship" aria-selected="true" title="Sponsorship">●</button>
+      <button class="card-nav__dot" role="tab" data-card="resume" aria-selected="false" title="Generate résumé">●</button>
+      <button class="card-nav__dot" role="tab" data-card="tracker" aria-selected="false" title="Application tracker">●</button>
+    </nav>
+
+    <div id="cardDeck" class="card-deck">
+    <main class="card" id="cardSponsorship" data-card="sponsorship">
       <section class="header">
         <div>
           <p class="eyebrow">H1B Scout</p>
@@ -151,12 +158,64 @@
       </section>
     </main>
 
+    <!-- Card 2 ─ Generate Résumé ────────────────────────────────────── -->
+    <main class="card" id="cardResume" data-card="resume">
+      <section class="header">
+        <div>
+          <p class="eyebrow">Generate résumé</p>
+          <h1 id="resumeCompanyHeading">No job detected</h1>
+          <p id="resumeTitleHeading" class="muted">Open a job post to tailor a résumé.</p>
+        </div>
+      </section>
+
+      <section class="info-card">
+        <h2 class="section-title">Detected job description</h2>
+        <p id="resumeJdSummary" class="source-note">No description captured yet.</p>
+        <details>
+          <summary class="source-note">Show / edit JD</summary>
+          <textarea id="resumeJdInput" rows="10" class="resume-jd-input"
+            placeholder="Paste or edit the job description here."></textarea>
+        </details>
+      </section>
+
+      <section class="info-card">
+        <h2 class="section-title">Backend</h2>
+        <p id="resumeBackendStatus" class="source-note">Checking backend…</p>
+        <div class="form-actions">
+          <button id="generateResumeBtn" type="button">⟡ Generate &amp; download</button>
+        </div>
+        <p id="resumeGenStatus" class="source-note" hidden></p>
+      </section>
+    </main>
+
+    <!-- Card 3 ─ Application tracker ────────────────────────────────── -->
+    <main class="card" id="cardTracker" data-card="tracker">
+      <section class="header">
+        <div>
+          <p class="eyebrow">Tracker</p>
+          <h1 id="trackerCompanyHeading">No company</h1>
+          <p class="muted">Recent applications for this employer.</p>
+        </div>
+        <div class="header-actions">
+          <button id="trackerReloadBtn" class="icon-btn" title="Reload" aria-label="Reload tracker">↻</button>
+        </div>
+      </section>
+
+      <section class="info-card">
+        <p id="trackerStatus" class="source-note">Loading…</p>
+        <div id="trackerList" class="tracker-list"></div>
+      </section>
+    </main>
+
+    </div><!-- /.card-deck -->
+
     <script src="../shared/normalization.js"></script>
     <script src="../shared/lookup.js"></script>
     <script src="../shared/local-db.js"></script>
     <script src="../shared/scoring.js"></script>
     <script src="panel-ui.js"></script>
     <script src="panel-settings.js"></script>
+    <script src="panel-cards.js"></script>
     <script src="panel.js"></script>
   </body>
 </html>

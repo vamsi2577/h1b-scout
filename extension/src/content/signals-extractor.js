@@ -217,6 +217,9 @@
 
   root.VisaSponsor = {
     ...(root.VisaSponsor || {}),
-    extractSignals
+    extractSignals,
+    // Exposed so job-extractor can ship the full JD text to the side panel
+    // (used by the Generate-Resume card → backend AI tailoring).
+    getDescriptionText
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);
