@@ -117,6 +117,15 @@
       offline.textContent = " unreachable";
       offline.style.color = "var(--danger, #d33)";
       offline.style.marginLeft = "6px";
+      if (resp.error) {
+        offline.title = resp.error;
+        offline.style.cursor = "help";
+        offline.style.textDecoration = "underline dashed";
+      } else if (resp.status) {
+        offline.title = `HTTP status ${resp.status}`;
+        offline.style.cursor = "help";
+        offline.style.textDecoration = "underline dashed";
+      }
       el.appendChild(offline);
     }
   }
@@ -221,6 +230,10 @@
   }
   document.getElementById("trackerReloadBtn").addEventListener("click", loadTracker);
 
+  function refreshBackendStatus() {
+    chrome.runtime.sendMessage({ type: "RIT_GET_BACKEND_URL" }, renderBackendStatus);
+  }
+
   // ── Exposed for panel.js to push fresh context after each render ─
-  window.H1B_CARDS = { applyContext, loadTracker };
+  window.H1B_CARDS = { applyContext, loadTracker, refreshBackendStatus };
 })();

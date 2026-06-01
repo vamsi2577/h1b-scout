@@ -58,6 +58,19 @@
         </div>
 
         <div class="settings-group">
+          <label for="ritBackendUrlInput">RIT backend URL</label>
+          <input id="ritBackendUrlInput" type="url"
+            placeholder="http://localhost:8000"
+            autocomplete="off">
+          <p class="source-note">Specify the endpoint of your Resume Intelligence Tracker instance. Defaults to http://localhost:8000.</p>
+          <div class="settings-actions">
+            <button type="button" id="saveRitBackendBtn">Save backend URL</button>
+            <button type="button" id="resetRitBackendBtn" class="btn-secondary">Reset to default</button>
+          </div>
+          <p id="ritBackendFeedback" class="source-note" style="margin-top: 4px; font-weight: 600;" hidden></p>
+        </div>
+
+        <div class="settings-group">
           <label for="shardFileInput">Local offline files</label>
           <p class="source-note">
             Use when the extension can't reach GitHub. Pick either the full

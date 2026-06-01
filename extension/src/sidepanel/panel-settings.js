@@ -17,6 +17,10 @@
       elements.customUrlInput.value = response.customBaseUrl || "";
       updateLocalShardsStatus(response.localLetters || []);
     });
+    chrome.runtime.sendMessage({ type: "RIT_GET_BACKEND_URL" }, (response) => {
+      if (!response?.ok) return;
+      elements.ritBackendUrlInput.value = response.isDefault ? "" : response.url;
+    });
   }
 
   function shardFullIndex(data) {
@@ -62,6 +66,71 @@
       elements.customUrlInput.value = "";
       chrome.runtime.sendMessage({ type: "SAVE_SETTINGS", customBaseUrl: "" }, (response) => {
         if (response?.ok) setStatus("URL reset to built-in default.", "info");
+      });
+    });
+
+    function showFeedback(text, isError = false) {
+      const fb = elements.ritBackendFeedback;
+      if (!fb) return;
+      fb.textContent = text;
+      fb.style.color = isError ? "var(--danger, #d33)" : "var(--accent-dark, #0d5148)";
+      fb.hidden = false;
+    }
+
+    elements.saveRitBackendBtn.addEventListener("click", () => {
+      const url = elements.ritBackendUrlInput.value.trim();
+      const btn = elements.saveRitBackendBtn;
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Saving...";
+      showFeedback("");
+
+      chrome.runtime.sendMessage({ type: "RIT_SET_BACKEND_URL", url }, (response) => {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        if (response?.ok) {
+          showFeedback("Saved ✓");
+          setStatus(url ? `RIT backend URL saved.` : "RIT backend URL reset to default.", "info");
+          setTimeout(() => {
+            if (elements.ritBackendFeedback.textContent === "Saved ✓") {
+              elements.ritBackendFeedback.hidden = true;
+            }
+          }, 2500);
+          if (window.H1B_CARDS && typeof window.H1B_CARDS.refreshBackendStatus === "function") {
+            window.H1B_CARDS.refreshBackendStatus();
+          }
+        } else {
+          showFeedback(`Error: ${response?.error || "unknown error"}`, true);
+          setStatus(`Failed to save backend URL: ${response?.error || "unknown error"}.`, "warning");
+        }
+      });
+    });
+
+    elements.resetRitBackendBtn.addEventListener("click", () => {
+      const btn = elements.resetRitBackendBtn;
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Resetting...";
+      showFeedback("");
+      elements.ritBackendUrlInput.value = "";
+
+      chrome.runtime.sendMessage({ type: "RIT_SET_BACKEND_URL", url: "" }, (response) => {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        if (response?.ok) {
+          showFeedback("Reset ✓");
+          setStatus("RIT backend URL reset to default.", "info");
+          setTimeout(() => {
+            if (elements.ritBackendFeedback.textContent === "Reset ✓") {
+              elements.ritBackendFeedback.hidden = true;
+            }
+          }, 2500);
+          if (window.H1B_CARDS && typeof window.H1B_CARDS.refreshBackendStatus === "function") {
+            window.H1B_CARDS.refreshBackendStatus();
+          }
+        } else {
+          showFeedback("Reset failed", true);
+        }
       });
     });
 

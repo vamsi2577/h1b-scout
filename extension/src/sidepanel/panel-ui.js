@@ -46,6 +46,10 @@
     customUrlInput: document.querySelector("#customUrlInput"),
     saveUrlBtn: document.querySelector("#saveUrlBtn"),
     resetUrlBtn: document.querySelector("#resetUrlBtn"),
+    ritBackendUrlInput: document.querySelector("#ritBackendUrlInput"),
+    saveRitBackendBtn: document.querySelector("#saveRitBackendBtn"),
+    resetRitBackendBtn: document.querySelector("#resetRitBackendBtn"),
+    ritBackendFeedback: document.querySelector("#ritBackendFeedback"),
     shardFileInput: document.querySelector("#shardFileInput"),
     clearShardsBtn: document.querySelector("#clearShardsBtn"),
     localShardsStatus: document.querySelector("#localShardsStatus")
