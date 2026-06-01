@@ -723,7 +723,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "RIT_GET_BACKEND_URL") {
-    getBackendUrl().then((url) => sendResponse({ ok: true, url, isDefault: url === DEFAULT_BACKEND_URL }));
+    // Returns the configured URL AND a one-shot probe of /health so the
+    // panel can show which env (dev / e2e / prod) it's about to write to.
+    // /health is fast, no auth, and the response carries X-Environment too.
+    (async () => {
+      const url = await getBackendUrl();
+      const base = { ok: true, url, isDefault: url === DEFAULT_BACKEND_URL };
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 2000);
+        const resp = await fetch(`${url}/health`, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (resp.ok) {
+          const body = await resp.json().catch(() => ({}));
+          sendResponse({
+            ...base,
+            env: body.env || resp.headers.get("X-Environment") || "unknown",
+            reachable: true,
+            db: body.db || null
+          });
+          return;
+        }
+        sendResponse({ ...base, env: "unknown", reachable: false, status: resp.status });
+      } catch (e) {
+        sendResponse({ ...base, env: "unknown", reachable: false, error: String(e.message || e) });
+      }
+    })();
     return true;
   }
 

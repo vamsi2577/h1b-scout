@@ -74,13 +74,54 @@
   }
 
   // ── Backend status check ─────────────────────────────────────────
-  function setBackendStatus(text) {
-    document.getElementById("resumeBackendStatus").textContent = text;
+  // Pulls the URL + a one-shot /health probe in a single message.
+  // Renders an env badge (DEV / E2E / PROD) so you can never confuse
+  // a dev write for a prod write.
+  const ENV_STYLES = {
+    development: { bg: "#dbeafe", fg: "#1d4ed8", label: "DEV" },
+    e2e:         { bg: "#fef3c7", fg: "#a16207", label: "E2E" },
+    staging:     { bg: "#fde68a", fg: "#92400e", label: "STAGING" },
+    production:  { bg: "#fee2e2", fg: "#b91c1c", label: "PROD" },
+    test:        { bg: "#e5e7eb", fg: "#374151", label: "TEST" },
+    unknown:     { bg: "#e5e7eb", fg: "#374151", label: "?" }
+  };
+
+  function renderBackendStatus(resp) {
+    const el = document.getElementById("resumeBackendStatus");
+    el.replaceChildren();
+    if (!resp?.ok) { el.textContent = "Backend URL not configured."; return; }
+
+    const url = document.createElement("code");
+    url.textContent = resp.url;
+    el.appendChild(url);
+
+    if (resp.reachable) {
+      const env = resp.env || "unknown";
+      const style = ENV_STYLES[env] || ENV_STYLES.unknown;
+      const badge = document.createElement("span");
+      badge.textContent = " " + style.label + " ";
+      badge.title = `Backend reports APP_ENV=${env}. Don't generate against prod by accident.`;
+      Object.assign(badge.style, {
+        background: style.bg,
+        color: style.fg,
+        fontSize: "10px",
+        fontWeight: "700",
+        padding: "1px 6px",
+        borderRadius: "999px",
+        marginLeft: "6px",
+        letterSpacing: "0.5px"
+      });
+      el.appendChild(badge);
+    } else {
+      const offline = document.createElement("span");
+      offline.textContent = " unreachable";
+      offline.style.color = "var(--danger, #d33)";
+      offline.style.marginLeft = "6px";
+      el.appendChild(offline);
+    }
   }
-  chrome.runtime.sendMessage({ type: "RIT_GET_BACKEND_URL" }, (resp) => {
-    if (!resp?.ok) { setBackendStatus("Backend URL not configured."); return; }
-    setBackendStatus(`Backend: ${resp.url}${resp.isDefault ? " (default)" : ""}`);
-  });
+
+  chrome.runtime.sendMessage({ type: "RIT_GET_BACKEND_URL" }, renderBackendStatus);
 
   // ── Generate Résumé button ───────────────────────────────────────
   const genBtn = document.getElementById("generateResumeBtn");
