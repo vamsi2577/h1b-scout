@@ -118,7 +118,15 @@
         filename: resp.filename,
         saveAs: false
       });
-      setGenStatus(`✓ ${resp.filename} downloaded. Logged as ${resp.applicationId?.slice(0, 8) || "?"}.`);
+      // Prefer the X-Metadata fields when available — they're the
+      // canonical company / title the backend logged, even when the JD
+      // contained a different name.
+      const meta = resp.metadata || {};
+      const loggedAs = meta.company_name && meta.job_title
+        ? `${meta.company_name} · ${meta.job_title}`
+        : (resp.applicationId?.slice(0, 8) || "?");
+      const dupHint = resp.duplicateWarning ? " ⚠ duplicate" : "";
+      setGenStatus(`✓ ${resp.filename} downloaded. Logged as ${loggedAs}${dupHint}.`);
       // Refresh tracker so the new entry shows up.
       loadTracker();
     });
