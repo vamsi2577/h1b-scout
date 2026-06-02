@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "H1B Scout",
-  "version": "0.2.8",
+  "version": "0.3.1",
   "description": "See H-1B and PERM sponsorship history for any employer - right from the job post. Supports Greenhouse, Workday, Lever, Ashby, LinkedIn, HigherEdJobs, hiring.cafe, Dice, and embedded ATS boards.",
-  "permissions": ["sidePanel", "tabs", "storage", "scripting", "clipboardWrite"],
+  "permissions": ["sidePanel", "tabs", "storage", "scripting", "clipboardWrite", "downloads"],
   "host_permissions": [
     "https://*.greenhouse.io/*",
     "https://*.myworkdayjobs.com/*",
@@ -19,7 +19,9 @@
     "https://api.github.com/*",
     "https://github.com/*",
     "https://objects.githubusercontent.com/*",
-    "https://boards-api.greenhouse.io/*"
+    "https://boards-api.greenhouse.io/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "optional_host_permissions": [
     "<all_urls>"

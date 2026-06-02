@@ -20,13 +20,19 @@
     const signals = (typeof VisaSponsor !== "undefined" && VisaSponsor.extractSignals)
       ? VisaSponsor.extractSignals()
       : [];
+    // Pull the full JD text so the side panel's Generate-Resume card can
+    // forward it to the backend without re-querying the DOM.
+    const jobDescription = (typeof VisaSponsor !== "undefined" && VisaSponsor.getDescriptionText)
+      ? VisaSponsor.getDescriptionText()
+      : "";
     return {
       type: "JOB_CONTEXT_FOUND",
       companyName: context.companyName || "",
       jobTitle: context.jobTitle || "",
       source,
       url: location.href,
-      signals
+      signals,
+      jobDescription
     };
   }
 

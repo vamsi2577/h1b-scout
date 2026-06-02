@@ -431,7 +431,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       jobTitle: message.jobTitle || "",
       source: message.source || "unknown",
       url: message.url || sender.tab?.url || "",
-      signals: Array.isArray(message.signals) ? message.signals : []
+      signals: Array.isArray(message.signals) ? message.signals : [],
+      // Full JD text from the content script (used by Generate-Resume card).
+      jobDescription: typeof message.jobDescription === "string" ? message.jobDescription : ""
     };
     latestContextByTab.set(tabId, context);
     // Persist to session storage so the context survives service-worker restarts
@@ -632,6 +634,131 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     sendResponse({ ok: true });
     return false;
+  }
+
+  // ── RIT backend proxy ────────────────────────────────────────────────────
+  // The Resume Intelligence Tracker backend powers résumé generation and
+  // application tracking. Calls happen here in the service worker so they
+  // share one origin (chrome-extension://<id>) and the side panel doesn't
+  // need its own host permission. Backend URL is configurable via the
+  // settings drawer; defaults to the local dev server.
+  const DEFAULT_BACKEND_URL = "http://localhost:8000";
+
+  async function getBackendUrl() {
+    const { ritBackendUrl } = await chrome.storage.local.get("ritBackendUrl");
+    return (ritBackendUrl || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
+  }
+
+  if (message.type === "RIT_GENERATE_RESUME") {
+    (async () => {
+      try {
+        const base = await getBackendUrl();
+        const body = message.body || {};
+        const resp = await fetch(`${base}/api/v1/generate-resume-from-jd`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        if (!resp.ok) {
+          const errText = await resp.text().catch(() => "");
+          sendResponse({ ok: false, status: resp.status, error: errText || `HTTP ${resp.status}` });
+          return;
+        }
+        const blob = await resp.blob();
+        // Encode the DOCX as a data URL so chrome.downloads (called from the
+        // panel) can save it without ArrayBuffer transfer headaches.
+        const reader = new FileReader();
+        reader.onload = () => {
+          const disposition = resp.headers.get("Content-Disposition") || "";
+          const dispositionFilename = (disposition.split("filename=")[1] || "").replace(/"/g, "").trim();
+          // X-Metadata is the canonical source for response state (see
+          // src/api/resume_generator.py on the backend) — it groups
+          // application_id, company_name, job_title, duplicate_warning,
+          // and filename in one JSON header so future fields don't need
+          // their own X-* header. Fall back to the individual X-* headers
+          // when the metadata header is missing or unparseable.
+          let metadata = null;
+          const rawMetadata = resp.headers.get("X-Metadata");
+          if (rawMetadata) {
+            try { metadata = JSON.parse(rawMetadata); }
+            catch (e) { console.warn("X-Metadata parse failed:", e); }
+          }
+          sendResponse({
+            ok: true,
+            dataUrl: reader.result,
+            filename: metadata?.filename || dispositionFilename || "Resume.docx",
+            applicationId: metadata?.application_id || resp.headers.get("X-Application-Id") || null,
+            duplicateWarning:
+              typeof metadata?.duplicate_warning === "boolean"
+                ? metadata.duplicate_warning
+                : resp.headers.get("X-Duplicate-Warning") === "true",
+            metadata
+          });
+        };
+        reader.onerror = () => sendResponse({ ok: false, error: "Blob read failed" });
+        reader.readAsDataURL(blob);
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e.message || e) });
+      }
+    })();
+    return true; // async
+  }
+
+  if (message.type === "RIT_FETCH_APPLICATIONS") {
+    (async () => {
+      try {
+        const base = await getBackendUrl();
+        const params = new URLSearchParams(message.params || {});
+        const resp = await fetch(`${base}/api/v1/applications?${params}`);
+        if (!resp.ok) {
+          sendResponse({ ok: false, status: resp.status, error: `HTTP ${resp.status}` });
+          return;
+        }
+        sendResponse({ ok: true, payload: await resp.json() });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e.message || e) });
+      }
+    })();
+    return true;
+  }
+
+  if (message.type === "RIT_GET_BACKEND_URL") {
+    // Returns the configured URL AND a one-shot probe of /health so the
+    // panel can show which env (dev / e2e / prod) it's about to write to.
+    // /health is fast, no auth, and the response carries X-Environment too.
+    (async () => {
+      const url = await getBackendUrl();
+      const base = { ok: true, url, isDefault: url === DEFAULT_BACKEND_URL };
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 2000);
+        const resp = await fetch(`${url}/health`, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (resp.ok) {
+          const body = await resp.json().catch(() => ({}));
+          sendResponse({
+            ...base,
+            env: body.env || resp.headers.get("X-Environment") || "unknown",
+            reachable: true,
+            db: body.db || null
+          });
+          return;
+        }
+        sendResponse({ ...base, env: "unknown", reachable: false, status: resp.status });
+      } catch (e) {
+        sendResponse({ ...base, env: "unknown", reachable: false, error: String(e.message || e) });
+      }
+    })();
+    return true;
+  }
+
+  if (message.type === "RIT_SET_BACKEND_URL") {
+    const url = typeof message.url === "string" ? message.url.trim() : "";
+    const op = url
+      ? chrome.storage.local.set({ ritBackendUrl: url })
+      : chrome.storage.local.remove("ritBackendUrl");
+    op.then(() => sendResponse({ ok: true })).catch((e) => sendResponse({ ok: false, error: String(e) }));
+    return true;
   }
 
   return false;
