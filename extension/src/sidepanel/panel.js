@@ -75,6 +75,12 @@ function render(payload) {
   renderYearBreakdown(lookup);
   renderLinks(lookup.sourceLinks);
   elements.dataAge.textContent = format.dataAge(payload.dataAge);
+
+  // Push fresh job context into the Résumé / Tracker cards.
+  if (window.H1B_CARDS) {
+    window.H1B_CARDS.applyContext(currentContext);
+    window.H1B_CARDS.loadTracker();
+  }
 }
 
 function loadPanelData() {
