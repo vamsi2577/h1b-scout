@@ -1,4 +1,4 @@
-importScripts("shared/normalization.js", "shared/lookup.js", "shared/local-db.js", "shared/scoring.js");
+importScripts("shared/normalization.js", "shared/lookup.js", "shared/local-db.js", "shared/scoring.js", "shared/rit-client.js");
 
 // ── Data source ─────────────────────────────────────────────────────────────
 // Base URL for the per-letter shard files on GitHub Releases.
@@ -642,11 +642,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // share one origin (chrome-extension://<id>) and the side panel doesn't
   // need its own host permission. Backend URL is configurable via the
   // settings drawer; defaults to the local dev server.
-  const DEFAULT_BACKEND_URL = "http://localhost:8000";
+  const DEFAULT_BACKEND_URL = VisaSponsor.RIT.DEFAULT_BACKEND_URL;
 
   async function getBackendUrl() {
     const { ritBackendUrl } = await chrome.storage.local.get("ritBackendUrl");
-    return (ritBackendUrl || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
+    return VisaSponsor.RIT.normalizeBackendUrl(ritBackendUrl, DEFAULT_BACKEND_URL);
   }
 
   if (message.type === "RIT_GENERATE_RESUME") {
@@ -669,31 +669,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // panel) can save it without ArrayBuffer transfer headaches.
         const reader = new FileReader();
         reader.onload = () => {
-          const disposition = resp.headers.get("Content-Disposition") || "";
-          const dispositionFilename = (disposition.split("filename=")[1] || "").replace(/"/g, "").trim();
           // X-Metadata is the canonical source for response state (see
           // src/api/resume_generator.py on the backend) — it groups
           // application_id, company_name, job_title, duplicate_warning,
           // and filename in one JSON header so future fields don't need
-          // their own X-* header. Fall back to the individual X-* headers
-          // when the metadata header is missing or unparseable.
-          let metadata = null;
-          const rawMetadata = resp.headers.get("X-Metadata");
-          if (rawMetadata) {
-            try { metadata = JSON.parse(rawMetadata); }
-            catch (e) { console.warn("X-Metadata parse failed:", e); }
-          }
-          sendResponse({
-            ok: true,
-            dataUrl: reader.result,
-            filename: metadata?.filename || dispositionFilename || "Resume.docx",
-            applicationId: metadata?.application_id || resp.headers.get("X-Application-Id") || null,
-            duplicateWarning:
-              typeof metadata?.duplicate_warning === "boolean"
-                ? metadata.duplicate_warning
-                : resp.headers.get("X-Duplicate-Warning") === "true",
-            metadata
-          });
+          // their own X-* header. Falls back to the individual X-* headers
+          // when the metadata header is missing or unparseable. Parsing is
+          // unit-tested in shared/rit-client.js.
+          const parsed = VisaSponsor.RIT.parseGenerateResumeHeaders(resp.headers);
+          sendResponse({ ok: true, dataUrl: reader.result, ...parsed });
         };
         reader.onerror = () => sendResponse({ ok: false, error: "Blob read failed" });
         reader.readAsDataURL(blob);
