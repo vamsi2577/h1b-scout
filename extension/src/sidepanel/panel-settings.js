@@ -21,6 +21,20 @@
       if (!response?.ok) return;
       elements.ritBackendUrlInput.value = response.isDefault ? "" : response.url;
     });
+    chrome.runtime.sendMessage({ type: "RIT_GET_TOKEN" }, (response) => {
+      if (!response?.ok) return;
+      renderTokenStatus(response.hasToken, response.prefix);
+    });
+  }
+
+  // Show whether a token is saved (and its non-secret prefix) without ever
+  // echoing the secret back into the input.
+  function renderTokenStatus(hasToken, prefix) {
+    const el = elements.ritTokenStatus;
+    if (!el) return;
+    el.textContent = hasToken
+      ? `A token is saved (${prefix}…). Paste a new one to replace it.`
+      : "No token saved — résumé generation and tracker sync are disabled.";
   }
 
   function shardFullIndex(data) {
@@ -130,6 +144,66 @@
           }
         } else {
           showFeedback("Reset failed", true);
+        }
+      });
+    });
+
+    function showTokenFeedback(text, isError = false) {
+      const fb = elements.ritTokenFeedback;
+      if (!fb) return;
+      fb.textContent = text;
+      fb.style.color = isError ? "var(--danger, #d33)" : "var(--accent-dark, #0d5148)";
+      fb.hidden = false;
+    }
+
+    elements.saveRitTokenBtn.addEventListener("click", () => {
+      const token = elements.ritApiTokenInput.value.trim();
+      if (!token) {
+        showTokenFeedback("Paste a token first, or use Remove.", true);
+        return;
+      }
+      const btn = elements.saveRitTokenBtn;
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Saving...";
+      showTokenFeedback("");
+
+      chrome.runtime.sendMessage({ type: "RIT_SET_TOKEN", token }, (response) => {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        if (response?.ok) {
+          // Don't keep the secret in the DOM — clear it and refresh the status.
+          elements.ritApiTokenInput.value = "";
+          showTokenFeedback("Saved ✓");
+          setStatus("RIT API token saved.", "info");
+          chrome.runtime.sendMessage({ type: "RIT_GET_TOKEN" }, (r) => {
+            if (r?.ok) renderTokenStatus(r.hasToken, r.prefix);
+          });
+          setTimeout(() => {
+            if (elements.ritTokenFeedback.textContent === "Saved ✓") {
+              elements.ritTokenFeedback.hidden = true;
+            }
+          }, 2500);
+        } else {
+          showTokenFeedback(`Error: ${response?.error || "unknown error"}`, true);
+        }
+      });
+    });
+
+    elements.resetRitTokenBtn.addEventListener("click", () => {
+      elements.ritApiTokenInput.value = "";
+      chrome.runtime.sendMessage({ type: "RIT_SET_TOKEN", token: "" }, (response) => {
+        if (response?.ok) {
+          showTokenFeedback("Removed ✓");
+          setStatus("RIT API token removed.", "info");
+          renderTokenStatus(false, "");
+          setTimeout(() => {
+            if (elements.ritTokenFeedback.textContent === "Removed ✓") {
+              elements.ritTokenFeedback.hidden = true;
+            }
+          }, 2500);
+        } else {
+          showTokenFeedback("Remove failed", true);
         }
       });
     });

@@ -175,7 +175,8 @@
     }, (resp) => {
       genBtn.disabled = false;
       if (!resp?.ok) {
-        setGenStatus(`✗ ${resp?.error || "Generation failed"}`, true);
+        const prefix = resp?.authRequired ? "🔒 " : "✗ ";
+        setGenStatus(`${prefix}${resp?.error || "Generation failed"}`, true);
         return;
       }
       // Trigger download via chrome.downloads (the service worker handed us
@@ -239,7 +240,10 @@
       params: { company, limit: 10, sort_by: "applied_date", sort_dir: "desc" }
     }, (resp) => {
       if (!resp?.ok) {
-        trackerStatus.textContent = `Backend unreachable — ${resp?.error || "unknown error"}`;
+        // A 401 isn't "unreachable" — surface the actionable token message as-is.
+        trackerStatus.textContent = resp?.authRequired
+          ? `🔒 ${resp.error}`
+          : `Backend unreachable — ${resp?.error || "unknown error"}`;
         return;
       }
       renderTracker(resp.payload?.data || []);
