@@ -733,10 +733,24 @@ body { padding-top: 28px; }
   min-height: 160px;
   font-family: var(--mono, ui-monospace, "JetBrains Mono", monospace);
   font-size: 12px;
-  padding: 8px;
+  padding: 10px 12px;
+  line-height: 1.5;
   border: 1px solid var(--border, #ddd);
   border-radius: 6px;
   box-sizing: border-box;
+  resize: vertical;
+  /* Themed scrollbar so it matches the panel instead of the OS default. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line, #444) transparent;
+}
+.resume-jd-input::-webkit-scrollbar { width: 8px; }
+.resume-jd-input::-webkit-scrollbar-track { background: transparent; }
+.resume-jd-input::-webkit-scrollbar-thumb {
+  background: var(--line, #444);
+  border-radius: 4px;
+}
+.resume-jd-input::-webkit-scrollbar-thumb:hover {
+  background: var(--muted, #888);
 }
 
 /* Tracker list rows */
