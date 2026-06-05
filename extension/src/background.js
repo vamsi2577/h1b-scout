@@ -649,19 +649,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return VisaSponsor.RIT.normalizeBackendUrl(ritBackendUrl, DEFAULT_BACKEND_URL);
   }
 
+  // The user's personal RIT API token (minted on the dashboard's "My Account"
+  // page). Optional — only the RIT-bridge calls send it; sponsorship lookups
+  // never do. Empty string when unset.
+  async function getApiToken() {
+    const { ritApiToken } = await chrome.storage.local.get("ritApiToken");
+    return typeof ritApiToken === "string" ? ritApiToken : "";
+  }
+
+  // Shared 401 message so the panel can point the user at Settings instead of
+  // showing a confusing "unreachable" error.
+  const RIT_AUTH_REQUIRED_MSG = "RIT needs an API token — add one in Settings (paste it from RIT → My Account).";
+
   if (message.type === "RIT_GENERATE_RESUME") {
     (async () => {
       try {
         const base = await getBackendUrl();
+        const token = await getApiToken();
         const body = message.body || {};
         const resp = await fetch(`${base}/api/v1/generate-resume-from-jd`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: VisaSponsor.RIT.buildAuthHeaders(token, { "Content-Type": "application/json" }),
           body: JSON.stringify(body)
         });
         if (!resp.ok) {
-          const errText = await resp.text().catch(() => "");
-          sendResponse({ ok: false, status: resp.status, error: errText || `HTTP ${resp.status}` });
+          const authRequired = resp.status === 401;
+          const errText = authRequired ? "" : await resp.text().catch(() => "");
+          sendResponse({
+            ok: false, status: resp.status, authRequired,
+            error: authRequired ? RIT_AUTH_REQUIRED_MSG : (errText || `HTTP ${resp.status}`),
+          });
           return;
         }
         const blob = await resp.blob();
@@ -692,10 +709,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       try {
         const base = await getBackendUrl();
+        const token = await getApiToken();
         const params = new URLSearchParams(message.params || {});
-        const resp = await fetch(`${base}/api/v1/applications?${params}`);
+        const resp = await fetch(`${base}/api/v1/applications?${params}`, {
+          headers: VisaSponsor.RIT.buildAuthHeaders(token),
+        });
         if (!resp.ok) {
-          sendResponse({ ok: false, status: resp.status, error: `HTTP ${resp.status}` });
+          const authRequired = resp.status === 401;
+          sendResponse({
+            ok: false, status: resp.status, authRequired,
+            error: authRequired ? RIT_AUTH_REQUIRED_MSG : `HTTP ${resp.status}`,
+          });
           return;
         }
         sendResponse({ ok: true, payload: await resp.json() });
@@ -741,6 +765,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const op = url
       ? chrome.storage.local.set({ ritBackendUrl: url })
       : chrome.storage.local.remove("ritBackendUrl");
+    op.then(() => sendResponse({ ok: true })).catch((e) => sendResponse({ ok: false, error: String(e) }));
+    return true;
+  }
+
+  if (message.type === "RIT_GET_TOKEN") {
+    // Never returns the raw secret — only whether one is saved and its
+    // non-secret prefix, enough for the settings UI to show which token is set.
+    chrome.storage.local.get("ritApiToken").then(({ ritApiToken = "" }) => {
+      const t = typeof ritApiToken === "string" ? ritApiToken : "";
+      sendResponse({ ok: true, hasToken: !!t, prefix: VisaSponsor.RIT.tokenPrefix(t) });
+    }).catch((e) => sendResponse({ ok: false, error: String(e) }));
+    return true;
+  }
+
+  if (message.type === "RIT_SET_TOKEN") {
+    const token = typeof message.token === "string" ? message.token.trim() : "";
+    const op = token
+      ? chrome.storage.local.set({ ritApiToken: token })
+      : chrome.storage.local.remove("ritApiToken");
     op.then(() => sendResponse({ ok: true })).catch((e) => sendResponse({ ok: false, error: String(e) }));
     return true;
   }

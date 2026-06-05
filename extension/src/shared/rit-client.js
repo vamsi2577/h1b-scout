@@ -22,6 +22,31 @@
     return raw.replace(/\/+$/, "");
   }
 
+  // Merge an optional personal API token into a request's headers as a
+  // Bearer credential. RIT honours the bearer token whenever present (even
+  // with REQUIRE_AUTH off), so this is how the extension authenticates to the
+  // RIT bridge — its chrome-extension:// origin can't carry the session
+  // cookie. A blank/absent token leaves the headers untouched (sponsorship
+  // features stay account-less).
+  function buildAuthHeaders(token, base = {}) {
+    const headers = { ...base };
+    // Defensive: anything that isn't a non-empty string (an unexpected
+    // chrome.storage value, undefined, etc.) is treated as "no token" — we
+    // return the base headers unchanged rather than throw. A bad/missing token
+    // then degrades to an unauthenticated request (handled as a 401 upstream),
+    // which is safer than breaking the call.
+    const t = (typeof token === "string") ? token.trim() : "";
+    if (t) headers.Authorization = `Bearer ${t}`;
+    return headers;
+  }
+
+  // The non-secret leading slug of a token (matches RIT's stored token_prefix),
+  // safe to show in the settings UI so the user can tell which token is saved.
+  function tokenPrefix(token, len = 12) {
+    const t = (typeof token === "string") ? token.trim() : "";
+    return t ? t.slice(0, len) : "";
+  }
+
   // Turn the /generate-resume-from-jd response headers into the flat shape
   // the panel consumes. X-Metadata is the canonical source (groups
   // application_id / company_name / job_title / duplicate_warning /
@@ -66,6 +91,8 @@
       DEFAULT_BACKEND_URL,
       normalizeBackendUrl,
       parseGenerateResumeHeaders,
+      buildAuthHeaders,
+      tokenPrefix,
     },
   };
 

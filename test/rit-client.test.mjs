@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 
 globalThis.VisaSponsor = {};
 await import("../extension/src/shared/rit-client.js");
-const { normalizeBackendUrl, parseGenerateResumeHeaders, DEFAULT_BACKEND_URL } =
+const { normalizeBackendUrl, parseGenerateResumeHeaders, buildAuthHeaders, tokenPrefix, DEFAULT_BACKEND_URL } =
   globalThis.VisaSponsor.RIT;
 
 // A minimal Headers-like double: case-sensitive .get(), like the test only
@@ -41,6 +41,49 @@ test("normalizeBackendUrl accepts a custom fallback", () => {
 test("normalizeBackendUrl ignores non-string configured values", () => {
   assert.equal(normalizeBackendUrl(1234), DEFAULT_BACKEND_URL);
   assert.equal(normalizeBackendUrl({}), DEFAULT_BACKEND_URL);
+});
+
+// ── buildAuthHeaders ──────────────────────────────────────────────────────────
+
+test("buildAuthHeaders adds a Bearer header when a token is present", () => {
+  assert.deepEqual(buildAuthHeaders("rit_abc"), { Authorization: "Bearer rit_abc" });
+});
+
+test("buildAuthHeaders merges into base headers without mutating them", () => {
+  const base = { "Content-Type": "application/json" };
+  const out = buildAuthHeaders("rit_abc", base);
+  assert.deepEqual(out, { "Content-Type": "application/json", Authorization: "Bearer rit_abc" });
+  assert.deepEqual(base, { "Content-Type": "application/json" });  // unmutated
+});
+
+test("buildAuthHeaders omits Authorization for a blank/absent token", () => {
+  assert.deepEqual(buildAuthHeaders(""), {});
+  assert.deepEqual(buildAuthHeaders("   "), {});
+  assert.deepEqual(buildAuthHeaders(undefined), {});
+  assert.deepEqual(buildAuthHeaders(null, { a: 1 }), { a: 1 });
+});
+
+test("buildAuthHeaders trims surrounding whitespace from the token", () => {
+  assert.deepEqual(buildAuthHeaders("  rit_abc  "), { Authorization: "Bearer rit_abc" });
+});
+
+// ── tokenPrefix ───────────────────────────────────────────────────────────────
+
+test("tokenPrefix returns the leading slug and never throws on junk", () => {
+  assert.equal(tokenPrefix("rit_abcdefghijklmnop"), "rit_abcdefgh");   // default len 12
+  assert.equal(tokenPrefix("rit_abc", 12), "rit_abc");                 // shorter than len
+  assert.equal(tokenPrefix("  rit_abcdef ", 8), "rit_abcd");           // trims first
+  assert.equal(tokenPrefix(""), "");
+  assert.equal(tokenPrefix(undefined), "");
+  assert.equal(tokenPrefix(1234), "");
+});
+
+test("tokenPrefix default length is 12 — matches background.js calling tokenPrefix(t)", () => {
+  // background.js / RIT_GET_TOKEN calls tokenPrefix(t) with no length arg, so
+  // the default must be 12 to line up with RIT's stored token_prefix (12).
+  const full = "rit_" + "a".repeat(43);   // ~ secrets.token_urlsafe(32) length
+  assert.equal(tokenPrefix(full).length, 12);
+  assert.equal(tokenPrefix(full), full.slice(0, 12));
 });
 
 // ── parseGenerateResumeHeaders: X-Metadata is canonical ───────────────────────
