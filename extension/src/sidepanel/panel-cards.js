@@ -91,16 +91,23 @@
     el.replaceChildren();
     if (!resp?.ok) { el.textContent = "Backend URL not configured."; return; }
 
-    const url = document.createElement("code");
-    url.textContent = resp.url;
-    el.appendChild(url);
+    // The raw backend URL (e.g. http://localhost:8000) is a technical detail —
+    // keep it out of the visible panel but expose it on hover via the title
+    // tooltip so it's still inspectable when debugging.
+    const label = document.createElement("span");
+    label.textContent = "Backend ";
+    label.style.color = "var(--muted)";
+    el.appendChild(label);
 
     if (resp.reachable) {
       const env = resp.env || "unknown";
       const style = ENV_STYLES[env] || ENV_STYLES.unknown;
       const badge = document.createElement("span");
       badge.textContent = " " + style.label + " ";
-      badge.title = `Backend reports APP_ENV=${env}. Don't generate against prod by accident.`;
+      // Tooltip carries the URL + the env warning so the panel stays clean
+      // but the "don't generate against prod" signal is one hover away.
+      badge.title = `${resp.url}\nAPP_ENV=${env}. Don't generate against prod by accident.`;
+      badge.style.cursor = "help";
       Object.assign(badge.style, {
         background: style.bg,
         color: style.fg,
@@ -108,24 +115,21 @@
         fontWeight: "700",
         padding: "1px 6px",
         borderRadius: "999px",
-        marginLeft: "6px",
+        marginLeft: "2px",
         letterSpacing: "0.5px"
       });
       el.appendChild(badge);
     } else {
       const offline = document.createElement("span");
-      offline.textContent = " unreachable";
+      offline.textContent = "unreachable";
       offline.style.color = "var(--danger, #d33)";
-      offline.style.marginLeft = "6px";
-      if (resp.error) {
-        offline.title = resp.error;
-        offline.style.cursor = "help";
-        offline.style.textDecoration = "underline dashed";
-      } else if (resp.status) {
-        offline.title = `HTTP status ${resp.status}`;
-        offline.style.cursor = "help";
-        offline.style.textDecoration = "underline dashed";
-      }
+      offline.style.cursor = "help";
+      offline.style.textDecoration = "underline dashed";
+      // Always include the URL in the tooltip; append the error/status when present.
+      const detail = resp.error
+        ? `\n${resp.error}`
+        : (resp.status ? `\nHTTP status ${resp.status}` : "");
+      offline.title = `${resp.url}${detail}`;
       el.appendChild(offline);
     }
   }
