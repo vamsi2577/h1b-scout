@@ -101,24 +101,37 @@
 
     if (resp.reachable) {
       const env = resp.env || "unknown";
-      const style = ENV_STYLES[env] || ENV_STYLES.unknown;
-      const badge = document.createElement("span");
-      badge.textContent = " " + style.label + " ";
-      // Tooltip carries the URL + the env warning so the panel stays clean
-      // but the "don't generate against prod" signal is one hover away.
-      badge.title = `${resp.url}\nAPP_ENV=${env}. Don't generate against prod by accident.`;
-      badge.style.cursor = "help";
-      Object.assign(badge.style, {
-        background: style.bg,
-        color: style.fg,
-        fontSize: "10px",
-        fontWeight: "700",
-        padding: "1px 6px",
-        borderRadius: "999px",
-        marginLeft: "2px",
-        letterSpacing: "0.5px"
-      });
-      el.appendChild(badge);
+      if (env === "production") {
+        // Production is the expected normal state — the env badge exists to
+        // warn you when you're NOT on prod, so on prod itself it's just noise.
+        // Show a quiet "connected" instead, URL still on hover.
+        const ok = document.createElement("span");
+        ok.textContent = "connected";
+        ok.style.color = "var(--muted)";
+        ok.style.cursor = "help";
+        ok.title = resp.url;
+        el.appendChild(ok);
+      } else {
+        // Non-prod (dev / e2e / staging / test / unknown): show the env badge
+        // as a "you're not on prod" signal so you don't generate against the
+        // wrong backend by accident.
+        const style = ENV_STYLES[env] || ENV_STYLES.unknown;
+        const badge = document.createElement("span");
+        badge.textContent = " " + style.label + " ";
+        badge.title = `${resp.url}\nAPP_ENV=${env}`;
+        badge.style.cursor = "help";
+        Object.assign(badge.style, {
+          background: style.bg,
+          color: style.fg,
+          fontSize: "10px",
+          fontWeight: "700",
+          padding: "1px 6px",
+          borderRadius: "999px",
+          marginLeft: "2px",
+          letterSpacing: "0.5px"
+        });
+        el.appendChild(badge);
+      }
     } else {
       const offline = document.createElement("span");
       offline.textContent = "unreachable";
