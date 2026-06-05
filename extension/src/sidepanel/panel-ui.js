@@ -50,6 +50,11 @@
     saveRitBackendBtn: document.querySelector("#saveRitBackendBtn"),
     resetRitBackendBtn: document.querySelector("#resetRitBackendBtn"),
     ritBackendFeedback: document.querySelector("#ritBackendFeedback"),
+    ritApiTokenInput: document.querySelector("#ritApiTokenInput"),
+    saveRitTokenBtn: document.querySelector("#saveRitTokenBtn"),
+    resetRitTokenBtn: document.querySelector("#resetRitTokenBtn"),
+    ritTokenStatus: document.querySelector("#ritTokenStatus"),
+    ritTokenFeedback: document.querySelector("#ritTokenFeedback"),
     shardFileInput: document.querySelector("#shardFileInput"),
     clearShardsBtn: document.querySelector("#clearShardsBtn"),
     localShardsStatus: document.querySelector("#localShardsStatus")

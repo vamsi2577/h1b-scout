@@ -71,6 +71,20 @@
         </div>
 
         <div class="settings-group">
+          <label for="ritApiTokenInput">RIT API token</label>
+          <input id="ritApiTokenInput" type="password"
+            placeholder="rit_…"
+            autocomplete="off">
+          <p class="source-note">Needed only to generate résumés and log applications to your tracker. Create one in RIT → My Account → API tokens, then paste it here. Sponsorship lookups don't need it.</p>
+          <div class="settings-actions">
+            <button type="button" id="saveRitTokenBtn">Save token</button>
+            <button type="button" id="resetRitTokenBtn" class="btn-secondary">Remove</button>
+          </div>
+          <p id="ritTokenStatus" class="source-note" style="margin-top: 4px;"></p>
+          <p id="ritTokenFeedback" class="source-note" style="margin-top: 4px; font-weight: 600;" hidden></p>
+        </div>
+
+        <div class="settings-group">
           <label for="shardFileInput">Local offline files</label>
           <p class="source-note">
             Use when the extension can't reach GitHub. Pick either the full
