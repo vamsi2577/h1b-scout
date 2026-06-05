@@ -78,6 +78,14 @@ test("tokenPrefix returns the leading slug and never throws on junk", () => {
   assert.equal(tokenPrefix(1234), "");
 });
 
+test("tokenPrefix default length is 12 — matches background.js calling tokenPrefix(t)", () => {
+  // background.js / RIT_GET_TOKEN calls tokenPrefix(t) with no length arg, so
+  // the default must be 12 to line up with RIT's stored token_prefix (12).
+  const full = "rit_" + "a".repeat(43);   // ~ secrets.token_urlsafe(32) length
+  assert.equal(tokenPrefix(full).length, 12);
+  assert.equal(tokenPrefix(full), full.slice(0, 12));
+});
+
 // ── parseGenerateResumeHeaders: X-Metadata is canonical ───────────────────────
 
 test("parseGenerateResumeHeaders prefers X-Metadata fields", () => {

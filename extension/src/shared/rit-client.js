@@ -30,6 +30,11 @@
   // features stay account-less).
   function buildAuthHeaders(token, base = {}) {
     const headers = { ...base };
+    // Defensive: anything that isn't a non-empty string (an unexpected
+    // chrome.storage value, undefined, etc.) is treated as "no token" — we
+    // return the base headers unchanged rather than throw. A bad/missing token
+    // then degrades to an unauthenticated request (handled as a 401 upstream),
+    // which is safer than breaking the call.
     const t = (typeof token === "string") ? token.trim() : "";
     if (t) headers.Authorization = `Bearer ${t}`;
     return headers;
